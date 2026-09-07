@@ -37,8 +37,8 @@ export const AppHeader: React.FC = () => {
           <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#141312] group-hover:opacity-75 transition-opacity">
             ATELIER
           </span>
-          <span className="text-[9px] sm:text-[10px] tracking-normal font-medium text-[#78716C] normal-case">
-            by Love Humbly Shop and Corset Bloomfields
+          <span className="text-[8.5px] sm:text-[9.5px] tracking-wider font-medium text-[#78716C] uppercase">
+            BY LOVE HUMBLY SHOP AND CORSET BLOOMFIELDS
           </span>
         </button>
 
