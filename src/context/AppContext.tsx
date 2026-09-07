@@ -13,6 +13,9 @@ import {
   CustomerTab,
   AdminTab,
   Admin2FAEmail,
+  FirestoreCategory,
+  FirestoreStore,
+  FirestoreProductVariation,
 } from '../types';
 import { MOCK_GARMENTS } from '../data/garments';
 import { INITIAL_MOCK_ORDERS } from '../data/initialOrders';
@@ -23,6 +26,9 @@ import {
   purgeDemoGarmentsFromFirestore,
   normalizeFirestoreCatalogDatabase,
   getCachedGarmentsFromLocalStorage,
+  subscribeToFirestoreCategories,
+  subscribeToFirestoreStores,
+  fetchProductVariationsFromFirestore,
 } from '../services/firestoreProducts';
 
 interface AppContextType {
@@ -79,6 +85,9 @@ interface AppContextType {
 
   // Garments / Products data from Firestore
   garments: Garment[];
+  categories: FirestoreCategory[];
+  stores: FirestoreStore[];
+  fetchVariations: (garment: Garment) => Promise<FirestoreProductVariation[]>;
   isFirestoreLoading: boolean;
   firestoreSource: 'firestore' | 'seed';
   saveGarment: (garment: Garment) => Promise<void>;
@@ -256,6 +265,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cached = getCachedGarmentsFromLocalStorage();
     return cached && cached.length > 0 ? cached : [];
   });
+  const [categories, setCategories] = useState<FirestoreCategory[]>([]);
+  const [stores, setStores] = useState<FirestoreStore[]>([]);
   const [isFirestoreLoading, setIsFirestoreLoading] = useState<boolean>(() => {
     const cached = getCachedGarmentsFromLocalStorage();
     return !cached || cached.length === 0;
@@ -264,7 +275,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Subscribe to real-time updates from Firestore
   useEffect(() => {
-    const unsubscribe = subscribeToFirestoreProducts(
+    const unsubscribeProducts = subscribeToFirestoreProducts(
       (loadedGarments, source) => {
         setGarments(loadedGarments || []);
         setIsFirestoreLoading(false);
@@ -275,7 +286,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsFirestoreLoading(false);
       }
     );
-    return () => unsubscribe();
+
+    const unsubscribeCategories = subscribeToFirestoreCategories((loadedCats) => {
+      setCategories(loadedCats || []);
+    });
+
+    const unsubscribeStores = subscribeToFirestoreStores((loadedStores) => {
+      setStores(loadedStores || []);
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeCategories();
+      unsubscribeStores();
+    };
   }, []);
 
   // Save/Update garment in Firestore
@@ -609,6 +633,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         configuredDurations,
         setConfiguredDurations,
         garments,
+        categories,
+        stores,
+        fetchVariations: fetchProductVariationsFromFirestore,
         isFirestoreLoading,
         firestoreSource,
         saveGarment,

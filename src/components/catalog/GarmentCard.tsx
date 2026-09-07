@@ -133,7 +133,16 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
             )}
 
             <p className="text-xs font-medium text-[#141312] mt-1.5">
-              {formatPHP(garment.basePrice4Days)} <span className="text-[10px] font-normal text-[#948E88]">/ 4 days</span>
+              {garment.price_min && garment.price_max && garment.price_min !== garment.price_max ? (
+                <>
+                  {formatPHP(garment.price_min)} – {formatPHP(garment.price_max)}
+                </>
+              ) : (
+                <>
+                  {formatPHP(garment.price_min || garment.basePrice4Days)}
+                </>
+              )}
+              <span className="text-[10px] font-normal text-[#948E88]"> / 4 days</span>
             </p>
           </div>
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Garment, GarmentSize, GarmentVariation } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Garment, GarmentSize, GarmentVariation, FirestoreProductVariation } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
   formatPHP,
@@ -7,8 +7,9 @@ import {
   calculateRentalPrice,
   formatDisplayDateShort,
 } from '../../utils/formatters';
-import { X, Check, ShoppingBag, Sparkles, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { X, Check, ShoppingBag, Sparkles, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
+import { fetchProductVariationsFromFirestore } from '../../services/firestoreProducts';
 
 interface VariationSelectModalProps {
   garment: Garment;
@@ -22,6 +23,19 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   onClose,
 }) => {
   const { addToCart, configuredDurations } = useApp();
+  const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchProductVariationsFromFirestore(garment).then((vars) => {
+      if (isMounted && vars.length > 0) {
+        setSubVariations(vars);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [garment]);
 
   const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
   const [selectedVarIndex, setSelectedVarIndex] = useState<number>(0);
@@ -30,8 +44,10 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
     ? garment.variations![selectedVarIndex] || garment.variations![0]
     : null;
 
-  // Available sizes
-  const availableSizes: GarmentSize[] = (activeVar?.sizes && activeVar.sizes.length > 0)
+  // Available sizes derived from subcollection or variations or parent
+  const availableSizes: GarmentSize[] = (subVariations.length > 0)
+    ? subVariations.map((v) => v.option_name)
+    : (activeVar?.sizes && activeVar.sizes.length > 0)
     ? activeVar.sizes
     : (garment.sizes.length > 0 ? garment.sizes : ['S', 'M', 'L']);
 
@@ -50,9 +66,16 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
 
   const endDate = addDaysToDate(startDate, durationDays - 1);
 
-  // Price calculations
+  // Price calculations: prioritize live subcollection or variation price from database
+  const matchedSubVar = subVariations.find((v) => v.option_name === selectedSize);
+  const effectiveBasePrice =
+    (matchedSubVar?.price && matchedSubVar.price > 0 ? matchedSubVar.price : null) ||
+    (activeVar?.price && activeVar.price > 0 ? activeVar.price : null) ||
+    garment.price_min ||
+    garment.basePrice4Days;
+
   const rentalPrice = calculateRentalPrice(
-    garment.basePrice4Days,
+    effectiveBasePrice,
     garment.dailyExtraRate,
     durationDays
   );
@@ -188,24 +211,45 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
 
           {/* 2. Size Selection */}
           <div className="space-y-2">
-            <label className="font-semibold text-[#141312] block tracking-wide">
-              2. Select Size: <span className="text-[#80232F]">{selectedSize}</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-[#141312] block tracking-wide">
+                2. Select Size: <span className="text-[#80232F]">{selectedSize}</span>
+              </label>
+              {(garment.sku || subVariations[0]?.sku) && (
+                <span className="text-[10px] text-[#948E88] font-mono">
+                  SKU: {garment.sku || subVariations[0]?.sku}
+                </span>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {availableSizes.map((size) => {
                 const isSelected = selectedSize === size;
+                const matchedSubVar = subVariations.find(
+                  (v) => v.option_name.toLowerCase() === size.toLowerCase()
+                );
                 return (
                   <button
                     key={size}
                     type="button"
                     onClick={() => setSelectedSize(size)}
-                    className={`h-9 px-4 rounded-lg font-medium text-xs transition-all border ${
+                    className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-[#141312] text-white border-[#141312]'
                         : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
                     }`}
                   >
-                    {size}
+                    <span>{size}</span>
+                    {matchedSubVar && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-normal ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : 'bg-[#FAF9F6] text-[#5C5854] border border-[#E8E4DF]'
+                        }`}
+                      >
+                        {matchedSubVar.available_to_sell} left
+                      </span>
+                    )}
                   </button>
                 );
               })}

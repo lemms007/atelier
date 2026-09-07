@@ -117,25 +117,8 @@ export const CatalogView: React.FC = () => {
           )}
         </div>
 
-        {/* Filter & Sort Selectors (filter icon removed) */}
+        {/* Sort Selector */}
         <div className="flex items-center gap-2 ml-auto sm:ml-0">
-          {/* Shop Filter Selector */}
-          <select
-            id="select-filter-shop"
-            value={selectedShop}
-            onChange={(e) => setSelectedShop(e.target.value)}
-            className="bg-[#FFFFFF] border border-[#E8E4DF] rounded-md px-2.5 py-1 text-xs text-[#141312] focus:outline-none focus:border-[#141312] transition-colors cursor-pointer"
-            aria-label="Filter by Shop"
-          >
-            <option value="All">All Shops</option>
-            {availableShops.map((shop) => (
-              <option key={shop} value={shop}>
-                {shop}
-              </option>
-            ))}
-          </select>
-
-          {/* Sort Selector */}
           <select
             id="select-sort-by"
             value={sortBy}

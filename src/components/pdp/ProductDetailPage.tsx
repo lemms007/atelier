@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Garment, GarmentSize } from '../../types';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { Garment, GarmentSize, FirestoreProductVariation } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
   formatPHP,
@@ -20,9 +20,14 @@ import {
   ShoppingBag,
   Zap,
   Check,
+  CheckCircle2,
 } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { preloadGarmentVariationImages } from '../../utils/imageCache';
+import {
+  fetchProductVariationsFromFirestore,
+  deduplicateImageUrls,
+} from '../../services/firestoreProducts';
 
 interface ProductDetailPageProps {
   garment: Garment;
@@ -40,6 +45,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     showToast,
     setIsCheckoutOpen,
   } = useApp();
+
+  const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchProductVariationsFromFirestore(garment).then((vars) => {
+      if (isMounted && vars.length > 0) {
+        setSubVariations(vars);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [garment]);
 
   // Garment variations resolution
   const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
@@ -61,28 +80,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       ) || garment.variations![0]
     : null;
 
-  // Active sizes (from variation or parent)
-  const availableSizes = activeVariation?.sizes && activeVariation.sizes.length > 0
+  // Active sizes (from subcollection, variation or parent)
+  const availableSizes = subVariations.length > 0
+    ? subVariations.map((v) => v.option_name)
+    : activeVariation?.sizes && activeVariation.sizes.length > 0
     ? activeVariation.sizes
     : garment.sizes;
 
   const [selectedSize, setSelectedSize] = useState<GarmentSize>(availableSizes[0] || 'S');
 
-  // Filter valid image URLs from Firebase for the active variation (or parent)
+  // Filter and deduplicate valid image URLs from Firebase for the active variation (or parent)
   const candidateImages = activeVariation && activeVariation.images && activeVariation.images.length > 0
     ? activeVariation.images
     : garment.images;
 
-  const validImages = Array.isArray(candidateImages)
-    ? candidateImages.filter(
-        (img) =>
-          typeof img === 'string' &&
-          img.trim().length > 5 &&
-          img.trim() !== 'null' &&
-          img.trim() !== 'undefined' &&
-          img.trim() !== '[object Object]'
-      )
-    : [];
+  const validImages = useMemo(() => {
+    return deduplicateImageUrls(candidateImages);
+  }, [candidateImages]);
 
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [failedIndices, setFailedIndices] = useState<number[]>([]);
@@ -168,13 +182,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     setDurationDays(duration);
   };
 
-  // Price calculations
+  // Price calculations: prioritize live subcollection or variation price from database
+  const activeSubVar = subVariations.find((v) => v.option_name === selectedSize);
+  const effectiveBasePrice =
+    (activeSubVar?.price && activeSubVar.price > 0 ? activeSubVar.price : null) ||
+    (activeVariation?.price && activeVariation.price > 0 ? activeVariation.price : null) ||
+    garment.price_min ||
+    garment.basePrice4Days;
+
   const rentalPrice = calculateRentalPrice(
-    garment.basePrice4Days,
+    effectiveBasePrice,
     garment.dailyExtraRate,
     durationDays
   );
-  const securityDeposit = garment.securityDeposit;
+  const securityDeposit = Math.max(0, Math.round(effectiveBasePrice * 0.5));
 
   const isWishlisted = wishlist.includes(garment.id);
 
@@ -419,23 +440,31 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-[#141312]">
-                    Select Size
+                    Select Size: <span className="text-[#80232F]">{selectedSize}</span>
                   </label>
+                  {(garment.sku || subVariations[0]?.sku) && (
+                    <span className="text-[10px] text-[#948E88] font-mono">
+                      SKU: {garment.sku || subVariations[0]?.sku}
+                    </span>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-5 gap-1.5">
-                  {(['XS', 'S', 'M', 'L', 'XL'] as GarmentSize[]).map((size) => {
-                    const isAvailable = availableSizes.includes(size);
+                <div className="flex flex-wrap gap-2">
+                  {availableSizes.map((size) => {
                     const isSelected = selectedSize === size;
+                    const matchedSubVar = subVariations.find(
+                      (v) => v.option_name.toLowerCase() === size.toLowerCase()
+                    );
+                    const isAvailable = matchedSubVar ? matchedSubVar.available_to_sell > 0 : true;
 
                     return (
                       <button
                         key={size}
-                        id={`btn-size-${size}`}
+                        id={`btn-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                         type="button"
                         disabled={!isAvailable}
                         onClick={() => setSelectedSize(size)}
-                        className={`h-10 rounded-md text-xs font-medium transition-all flex items-center justify-center border cursor-pointer ${
+                        className={`h-10 px-3.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border cursor-pointer ${
                           !isAvailable
                             ? 'opacity-30 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'
                             : isSelected
@@ -443,7 +472,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                             : 'bg-[#FFFFFF] text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
                         }`}
                       >
-                        {size}
+                        <span>{size}</span>
+                        {matchedSubVar && (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-normal ${
+                              isSelected
+                                ? 'bg-white/20 text-white'
+                                : 'bg-[#FAF9F6] text-[#5C5854] border border-[#E8E4DF]'
+                            }`}
+                          >
+                            {matchedSubVar.available_to_sell} left
+                          </span>
+                        )}
                       </button>
                     );
                   })}

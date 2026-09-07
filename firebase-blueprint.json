@@ -1,8 +1,98 @@
 {
   "entities": {
+    "RentalProduct": {
+      "title": "RentalProduct",
+      "description": "Normalized rental-ready designer garment in the rental catalog",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Product display name for the rental catalog" },
+        "store": { "type": "string", "description": "Owning atelier or store display name (e.g. Love Humbly Shop, Corset Bloomfield)" },
+        "rental_price": { "type": "number", "description": "Calculated rental rate for 4 days in PHP" },
+        "raw_price": { "type": "string", "description": "Original listed retail price string (e.g. ₱3,500.00)" },
+        "original_image_url": { "type": "string", "description": "Original source CDN image URL" },
+        "supabase_image_url": { "type": "string", "description": "Re-hosted high-resolution webp image in Supabase Storage" },
+        "product_url": { "type": "string", "description": "Original storefront URL on Enstack" },
+        "updated_at": { "type": "string", "description": "Timestamp when product was normalized" }
+      },
+      "required": ["title", "store", "rental_price"]
+    },
+    "RawProduct": {
+      "title": "RawProduct",
+      "description": "Scraped product document straight from store catalog API",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "Unique product SKU identifier" },
+        "store_id": { "type": "string", "description": "Store slug (e.g. love-humbly-shop or corsetbloomfield)" },
+        "model_name": { "type": "string", "description": "Full model name" },
+        "description": { "type": "string", "description": "Full product description and fabric specifications" },
+        "category_name": { "type": "string", "description": "Category name in store" },
+        "product_slug": { "type": "string", "description": "Storefront URL slug" },
+        "status": { "type": "string", "description": "Product status (e.g. active)" },
+        "price_min": { "type": "number", "description": "Minimum variant price in PHP" },
+        "price_max": { "type": "number", "description": "Maximum variant price in PHP" },
+        "photos": { "type": "array", "description": "Array of CDN image URLs" },
+        "image_remote_urls": { "type": "array", "description": "Array of S3 signed image URLs" },
+        "variants_count": { "type": "number", "description": "Total number of variations" },
+        "is_available_for_rent": { "type": "boolean", "description": "Whether the piece is available for rental" },
+        "created_at": { "type": "string", "description": "Creation timestamp" },
+        "scraped_at": { "type": "string", "description": "Scrape timestamp" }
+      },
+      "required": ["sku", "store_id", "model_name"]
+    },
+    "ProductVariation": {
+      "title": "ProductVariation",
+      "description": "Individual sellable/rentable variation doc under a product",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "Combined product and variant SKU" },
+        "store_id": { "type": "string", "description": "Owning store slug" },
+        "option_name": { "type": "string", "description": "Variation option name (e.g. size or color, e.g. Medium or Burgundy / S)" },
+        "price": { "type": "number", "description": "Unit list price in PHP" },
+        "sale_price": { "type": "number", "description": "Discounted unit price in PHP" },
+        "quantity": { "type": "number", "description": "Physical stock on hand" },
+        "available_to_sell": { "type": "number", "description": "Available stock quantity" },
+        "width": { "type": "number", "description": "Package width dimension" },
+        "length": { "type": "number", "description": "Package length dimension" },
+        "height": { "type": "number", "description": "Package height dimension" },
+        "weight": { "type": "number", "description": "Package weight dimension" },
+        "scraped_at": { "type": "string", "description": "Scrape timestamp" }
+      },
+      "required": ["sku", "store_id", "option_name"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Store-wide dress and couture category",
+      "type": "object",
+      "properties": {
+        "store_id": { "type": "string", "description": "Owning store slug" },
+        "name": { "type": "string", "description": "Category name (e.g. AMADA, ARELI, BRIDAL GOWNS)" },
+        "sort_order": { "type": "number", "description": "Display order index" },
+        "scraped_at": { "type": "string", "description": "Scrape timestamp" }
+      },
+      "required": ["store_id", "name"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Store profile, owner metadata, and links",
+      "type": "object",
+      "properties": {
+        "store_id": { "type": "string", "description": "Store slug (e.g. corsetbloomfield, love-humbly-shop)" },
+        "slug": { "type": "string", "description": "Storefront slug" },
+        "shop_name": { "type": "string", "description": "Display name of the atelier or shop" },
+        "shop_link": { "type": "string", "description": "Storefront web URL" },
+        "shop_image_url": { "type": "string", "description": "Store profile CDN image URL" },
+        "shop_image_remote_url": { "type": "string", "description": "S3 signed shop image URL" },
+        "is_vacation": { "type": "boolean", "description": "Whether the shop is in vacation mode" },
+        "business_hours": { "type": "string", "description": "Serialized operating hours JSON string" },
+        "socials": { "type": "string", "description": "Serialized social media handles and URLs" },
+        "owner": { "type": "string", "description": "Serialized owner contact and identity information" },
+        "scraped_at": { "type": "string", "description": "Scrape timestamp" }
+      },
+      "required": ["store_id", "shop_name", "shop_link"]
+    },
     "GarmentVariation": {
       "title": "GarmentVariation",
-      "description": "A specific color, fabric, or style variation of a garment with dedicated imagery and sizes",
+      "description": "Client-facing color, fabric, or style variation with dedicated imagery and sizes",
       "type": "object",
       "properties": {
         "id": { "type": "string", "description": "Unique variation identifier" },
@@ -12,45 +102,67 @@
         "images": { "type": "array", "description": "Variation-specific image URLs" },
         "sizes": { "type": "array", "description": "Available sizes for this variation" },
         "sku": { "type": "string", "description": "Stock keeping unit identifier" },
-        "inStock": { "type": "boolean", "description": "Availability status of this variation" }
+        "quantity": { "type": "number", "description": "Quantity in inventory" },
+        "availableToSell": { "type": "number", "description": "Units available to rent" },
+        "inStock": { "type": "boolean", "description": "Availability status of this variation" },
+        "basePrice4Days": { "type": "number", "description": "Base rental fee in PHP" }
       },
       "required": ["name", "images"]
     },
     "Garment": {
       "title": "Garment",
-      "description": "A luxury designer dress or couture garment available for rental with multi-color variations",
+      "description": "Unified rental garment model combining rental-normalized and raw store data with live variations",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Unique garment identifier" },
+        "id": { "type": "string", "description": "Unique garment document ID" },
+        "sku": { "type": "string", "description": "Product SKU code" },
         "name": { "type": "string", "description": "Garment title or base model name" },
-        "designer": { "type": "string", "description": "Fashion house or designer name" },
+        "designer": { "type": "string", "description": "Fashion house or store name" },
+        "store": { "type": "string", "description": "Store name (e.g. Love Humbly Shop, Corset Bloomfield)" },
+        "store_id": { "type": "string", "description": "Store identifier slug" },
         "category": { "type": "string", "description": "Garment category" },
+        "category_name": { "type": "string", "description": "Original store category name" },
+        "product_slug": { "type": "string", "description": "Storefront slug" },
+        "product_url": { "type": "string", "description": "Storefront URL" },
         "basePrice4Days": { "type": "number", "description": "Base rental fee for 4 days in PHP" },
         "dailyExtraRate": { "type": "number", "description": "Extra daily rate in PHP" },
         "retailValue": { "type": "number", "description": "Estimated retail replacement value in PHP" },
         "securityDeposit": { "type": "number", "description": "Refundable security deposit in PHP" },
+        "raw_price": { "type": "string", "description": "Original listed retail price string" },
+        "rental_price": { "type": "number", "description": "Rental price from normalized database" },
         "sizes": { "type": "array", "description": "Available garment sizes" },
         "colors": { "type": "array", "description": "Color swatches and colorways" },
         "variations": { "type": "array", "description": "Color and style variations with dedicated images and inventory" },
         "fabric": { "type": "string", "description": "Fabric composition" },
         "silhouette": { "type": "string", "description": "Silhouette cut" },
         "careNotes": { "type": "string", "description": "Care and maintenance guidelines" },
-        "images": { "type": "array", "description": "Garment image URLs" },
+        "images": { "type": "array", "description": "Garment image URLs (Supabase Storage, CDN, and S3)" },
+        "original_image_url": { "type": "string", "description": "Primary CDN image" },
+        "supabase_image_url": { "type": "string", "description": "High-res Supabase re-hosted image" },
+        "photos": { "type": "array", "description": "Original photo gallery URLs" },
         "inStock": { "type": "boolean", "description": "Availability status" },
         "featured": { "type": "boolean", "description": "Whether the piece is highlighted in editorial curation" },
-        "rawDocIds": { "type": "array", "description": "Merged source Firestore document IDs for backward compatibility" }
+        "rawDocIds": { "type": "array", "description": "Source Firestore document IDs" }
       },
       "required": ["id", "name", "designer", "category", "basePrice4Days", "images"]
     }
   },
   "firestore": {
     "/products/{productId}": {
-      "schema": "Garment",
-      "description": "Public catalog products and normalized designer garments collection with variations"
+      "schema": "RentalProduct",
+      "description": "Products collection containing both rental-normalized products and raw scraped catalog products"
     },
-    "/garments/{garmentId}": {
-      "schema": "Garment",
-      "description": "Garments inventory collection for rental catalog"
+    "/products/{productId}/variations/{variationId}": {
+      "schema": "ProductVariation",
+      "description": "Subcollection of sellable and rentable variations with option names, stock quantities, and prices"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Store-wide category documents with sort order and category names"
+    },
+    "/stores/{storeId}": {
+      "schema": "Store",
+      "description": "Store profiles, shop URLs, CDN logos, and owner details"
     }
   }
 }

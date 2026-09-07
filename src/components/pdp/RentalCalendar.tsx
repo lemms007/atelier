@@ -11,7 +11,6 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Info,
 } from 'lucide-react';
 
@@ -96,7 +95,7 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
   }
 
   const currentRentalPrice = calculateRentalPrice(
-    garment.basePrice4Days,
+    garment.price_min || garment.basePrice4Days,
     garment.dailyExtraRate,
     currentDuration
   );
@@ -138,25 +137,13 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
             </p>
           </div>
         </div>
-
-        {startDate && endDate && (
-          <div className="bg-[#141312] text-white px-2.5 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1.5 shrink-0">
-            <Clock className="w-3 h-3" />
-            <span>{currentDuration} Days</span>
-          </div>
-        )}
       </div>
 
-      {/* Duration Preset Selector (Fixed: 4, 8, 12, 14 Days - Prices Removed) */}
+      {/* Duration Preset Selector */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#948E88]">
-            Rental Duration:
-          </label>
-          <span className="text-[11px] font-medium text-[#141312]">
-            {currentDuration} Days Fixed Period
-          </span>
-        </div>
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-[#948E88] block">
+          Rental Duration:
+        </label>
         <div className="grid grid-cols-4 gap-2">
           {FIXED_RENTAL_DURATIONS.map((daysCount) => {
             const isSelected = currentDuration === daysCount;
@@ -318,7 +305,7 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
 
         <div className="text-right">
           <span className="text-[9px] uppercase font-medium text-[#948E88] tracking-wider block">
-            Rate ({currentDuration} Days)
+            Rental Rate
           </span>
           <span className="font-semibold text-[#141312]">
             {formatPHP(currentRentalPrice)}

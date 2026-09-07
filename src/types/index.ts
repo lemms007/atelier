@@ -9,7 +9,7 @@ export type GarmentCategory =
   | 'Formal Evening'
   | string;
 
-export type GarmentSize = 'XS' | 'S' | 'M' | 'L' | 'XL';
+export type GarmentSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | '2XL' | '3XL' | '4XL' | '5XL' | string;
 
 export interface GarmentColor {
   name: string;
@@ -19,12 +19,18 @@ export interface GarmentColor {
 
 export interface GarmentVariation {
   id?: string;
-  name: string; // e.g. "Burgundy", "Olive Green", "Champagne"
+  name: string; // e.g. "Burgundy", "Olive Green", "Champagne", or "Medium / Pink"
   colorName?: string;
+  option_name?: string;
   hex?: string;
   images: string[];
   sizes?: GarmentSize[];
   sku?: string;
+  store_id?: string;
+  price?: number;
+  sale_price?: number;
+  quantity?: number;
+  available_to_sell?: number;
   inStock?: boolean;
   basePrice4Days?: number;
   dailyExtraRate?: number;
@@ -33,11 +39,23 @@ export interface GarmentVariation {
 
 export interface Garment {
   id: string;
+  sku?: string;
+  store_id?: string;
+  model_name?: string;
+  title?: string;
   name: string;
-  designer: string; // "Love Humbly Shop" or "Corset Bloomfields"
+  designer: string; // "Love Humbly Shop" or "Corset Bloomfield"
   store?: string; // Product source shop
   productType?: string; // e.g. "Corset Gown", "Long Gown", "Midi Dress"
   category: string;
+  category_name?: string;
+  product_slug?: string;
+  product_url?: string;
+  status?: string;
+  price_min?: number;
+  price_max?: number;
+  raw_price?: string;
+  rental_price?: number;
   retailValue: number; // in PHP
   basePrice4Days: number; // 4-day minimum rate in PHP
   dailyExtraRate: number; // rate per day beyond 4 days in PHP
@@ -46,6 +64,10 @@ export interface Garment {
   colors: GarmentColor[];
   variations?: GarmentVariation[];
   images: string[];
+  original_image_url?: string;
+  supabase_image_url?: string;
+  photos?: string[];
+  image_remote_urls?: string[];
   description: string;
   details: string[];
   fabric: string;
@@ -62,8 +84,80 @@ export interface Garment {
   rating: number;
   reviewCount: number;
   featured?: boolean;
+  is_available_for_rent?: boolean;
+  variants_count?: number;
   rawDocIds?: string[]; // Merged source Firestore document IDs
   updatedAt?: number;
+}
+
+/**
+ * Raw and normalized Firestore Database Schema types
+ */
+export interface FirestoreRentalProduct {
+  title: string;
+  store: string;
+  rental_price: number;
+  raw_price: string;
+  original_image_url: string;
+  supabase_image_url: string;
+  product_url: string;
+  updated_at?: any;
+}
+
+export interface FirestoreRawProduct {
+  sku: string;
+  store_id: string;
+  model_name: string;
+  description: string;
+  category_name: string;
+  product_slug: string;
+  status: string;
+  price_min: number;
+  price_max: number;
+  photos: string[];
+  image_remote_urls: string[];
+  variants_count: number;
+  is_available_for_rent: boolean;
+  created_at?: string;
+  scraped_at?: string;
+}
+
+export interface FirestoreProductVariation {
+  sku: string;
+  store_id: string;
+  option_name: string;
+  price: number;
+  sale_price: number;
+  quantity: number;
+  available_to_sell: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  weight?: number;
+  scraped_at?: string;
+}
+
+export interface FirestoreCategory {
+  id?: string;
+  store_id: string;
+  name: string;
+  sort_order: number;
+  scraped_at?: string;
+}
+
+export interface FirestoreStore {
+  id?: string;
+  store_id: string;
+  slug: string;
+  shop_name: string;
+  shop_link: string;
+  shop_image_url: string;
+  shop_image_remote_url?: string;
+  is_vacation?: boolean;
+  business_hours?: string | any;
+  socials?: string | any;
+  owner?: string | any;
+  scraped_at?: string;
 }
 
 export interface CartItem {

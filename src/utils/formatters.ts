@@ -91,17 +91,31 @@ export const calculateRentalPrice = (
   return basePrice4Days + extraDays * dailyExtraRate;
 };
 
+export const normalizeShopName = (name?: string): string => {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (/^corset\s*bloomfields?$/i.test(trimmed)) {
+    return 'Corset Bloomfield';
+  }
+  if (/^love\s*humbly(\s*shop)?$/i.test(trimmed)) {
+    return 'Love Humbly Shop';
+  }
+  return trimmed;
+};
+
 export const getGarmentShop = (garment: {
   store?: string;
   designer?: string;
   name?: string;
 }): string => {
-  if (garment.store && garment.store.trim()) return garment.store.trim();
+  if (garment.store && garment.store.trim()) {
+    return normalizeShopName(garment.store);
+  }
   if (garment.designer && garment.designer.trim() && garment.designer !== 'Atelier Manila') {
-    return garment.designer.trim();
+    return normalizeShopName(garment.designer);
   }
   if (garment.name && garment.name.toLowerCase().includes('corset')) {
-    return 'Corset Bloomfields';
+    return 'Corset Bloomfield';
   }
   return 'Love Humbly Shop';
 };
@@ -110,12 +124,12 @@ export const getAvailableShops = (
   garments: Array<{ store?: string; designer?: string; name?: string }>
 ): string[] => {
   const shopSet = new Set<string>();
-  // Pre-seed known authentic shops
+  // Pre-seed known canonical shops
   shopSet.add('Love Humbly Shop');
-  shopSet.add('Corset Bloomfields');
+  shopSet.add('Corset Bloomfield');
   garments.forEach((g) => {
     const s = getGarmentShop(g);
-    if (s) shopSet.add(s);
+    if (s) shopSet.add(normalizeShopName(s));
   });
   return Array.from(shopSet);
 };
