@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "GarmentVariation": {
+      "title": "GarmentVariation",
+      "description": "A specific color, fabric, or style variation of a garment with dedicated imagery and sizes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique variation identifier" },
+        "name": { "type": "string", "description": "Variation name such as Burgundy or Olive Green" },
+        "colorName": { "type": "string", "description": "Color name" },
+        "hex": { "type": "string", "description": "Hex color code" },
+        "images": { "type": "array", "description": "Variation-specific image URLs" },
+        "sizes": { "type": "array", "description": "Available sizes for this variation" },
+        "sku": { "type": "string", "description": "Stock keeping unit identifier" },
+        "inStock": { "type": "boolean", "description": "Availability status of this variation" }
+      },
+      "required": ["name", "images"]
+    },
+    "Garment": {
+      "title": "Garment",
+      "description": "A luxury designer dress or couture garment available for rental with multi-color variations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique garment identifier" },
+        "name": { "type": "string", "description": "Garment title or base model name" },
+        "designer": { "type": "string", "description": "Fashion house or designer name" },
+        "category": { "type": "string", "description": "Garment category" },
+        "basePrice4Days": { "type": "number", "description": "Base rental fee for 4 days in PHP" },
+        "dailyExtraRate": { "type": "number", "description": "Extra daily rate in PHP" },
+        "retailValue": { "type": "number", "description": "Estimated retail replacement value in PHP" },
+        "securityDeposit": { "type": "number", "description": "Refundable security deposit in PHP" },
+        "sizes": { "type": "array", "description": "Available garment sizes" },
+        "colors": { "type": "array", "description": "Color swatches and colorways" },
+        "variations": { "type": "array", "description": "Color and style variations with dedicated images and inventory" },
+        "fabric": { "type": "string", "description": "Fabric composition" },
+        "silhouette": { "type": "string", "description": "Silhouette cut" },
+        "careNotes": { "type": "string", "description": "Care and maintenance guidelines" },
+        "images": { "type": "array", "description": "Garment image URLs" },
+        "inStock": { "type": "boolean", "description": "Availability status" },
+        "featured": { "type": "boolean", "description": "Whether the piece is highlighted in editorial curation" },
+        "rawDocIds": { "type": "array", "description": "Merged source Firestore document IDs for backward compatibility" }
+      },
+      "required": ["id", "name", "designer", "category", "basePrice4Days", "images"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Garment",
+      "description": "Public catalog products and normalized designer garments collection with variations"
+    },
+    "/garments/{garmentId}": {
+      "schema": "Garment",
+      "description": "Garments inventory collection for rental catalog"
+    }
+  }
+}

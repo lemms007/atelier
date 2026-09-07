@@ -1,0 +1,6 @@
+{
+  "name": "Atelier Manila | Designer Garment Rentals",
+  "description": "Mobile-first luxury designer dress and garment rental platform featuring Atelier Design System aesthetics, 4–14 day rentals, KYC verification, and Philippine payment rails.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
