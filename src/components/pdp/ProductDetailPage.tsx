@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Garment, GarmentSize, FirestoreProductVariation } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
@@ -9,9 +9,11 @@ import {
   getGarmentShop,
   getGarmentColorOptions,
   GarmentColorOption,
+  getGarmentAvailableSizes,
+  normalizeSizeName,
+  isSkuLike,
 } from '../../utils/formatters';
 import { RentalCalendar } from './RentalCalendar';
-import { GarmentSpecifications } from './GarmentSpecifications';
 import {
   ArrowLeft,
   Heart,
@@ -80,43 +82,98 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   // Color options list derived uniformly
   const colorOptions = useMemo(() => getGarmentColorOptions(garment), [garment]);
 
+  // Helper to determine if a colorway option is disabled
+  const isColorDisabled = useCallback(
+    (opt: GarmentColorOption) => {
+      if (opt.disabled) return true;
+      if (opt.is_available_for_rent === false) return true;
+      if (opt.inStock === false) return true;
+      if (opt.quantity !== undefined && opt.quantity <= 0) return true;
+      if (opt.available_to_sell !== undefined && opt.available_to_sell <= 0) return true;
+
+      // Check subcollection matching color name
+      if (subVariations.length > 0) {
+        const matchingColorSubVars = subVariations.filter((v) => {
+          const norm = normalizeSizeName(v.option_name);
+          if (!norm) {
+            return (
+              v.option_name.toLowerCase() === opt.name.toLowerCase() ||
+              (opt.colorName && v.option_name.toLowerCase() === opt.colorName.toLowerCase())
+            );
+          }
+          return false;
+        });
+        if (matchingColorSubVars.length > 0) {
+          const anyAvailable = matchingColorSubVars.some((v) => v.available_to_sell > 0);
+          if (!anyAvailable) return true;
+        }
+      }
+
+      return false;
+    },
+    [subVariations]
+  );
+
   // Check saved variation state for this garment (e.g. from GarmentCard in catalog)
   const savedSelection = garmentSelections[garment.id];
 
   const initialIndex = useMemo(() => {
     if (initialColor) {
       const idx = colorOptions.findIndex(
-        (opt) => opt.name.toLowerCase() === initialColor.toLowerCase()
+        (opt) => opt.name.toLowerCase() === initialColor.toLowerCase() && !isColorDisabled(opt)
       );
       if (idx !== -1) return idx;
     }
     if (savedSelection?.colorName) {
       const idx = colorOptions.findIndex(
-        (opt) => opt.name.toLowerCase() === savedSelection.colorName!.toLowerCase()
+        (opt) => opt.name.toLowerCase() === savedSelection.colorName!.toLowerCase() && !isColorDisabled(opt)
       );
       if (idx !== -1) return idx;
     }
-    if (savedSelection?.variationIndex !== undefined && colorOptions[savedSelection.variationIndex]) {
+    if (
+      savedSelection?.variationIndex !== undefined &&
+      colorOptions[savedSelection.variationIndex] &&
+      !isColorDisabled(colorOptions[savedSelection.variationIndex])
+    ) {
       return savedSelection.variationIndex;
     }
-    if (initialVariationIndex !== undefined && colorOptions[initialVariationIndex]) {
+    if (
+      initialVariationIndex !== undefined &&
+      colorOptions[initialVariationIndex] &&
+      !isColorDisabled(colorOptions[initialVariationIndex])
+    ) {
       return initialVariationIndex;
     }
+    // Do not auto-select disabled colorway; select first available
+    const firstEnabledIdx = colorOptions.findIndex((opt) => !isColorDisabled(opt));
+    if (firstEnabledIdx !== -1) return firstEnabledIdx;
     return 0;
-  }, [colorOptions, initialColor, initialVariationIndex, savedSelection]);
+  }, [colorOptions, initialColor, initialVariationIndex, savedSelection, isColorDisabled]);
 
   // Selected variant state
-  const [selectedColor, setSelectedColor] = useState<string>(
-    colorOptions[initialIndex]?.name || 'Original'
-  );
+  const [selectedColor, setSelectedColor] = useState<string>(() => {
+    return colorOptions[initialIndex]?.name || 'Original';
+  });
 
   useEffect(() => {
-    if (savedSelection?.colorName) {
-      setSelectedColor(savedSelection.colorName);
-    } else if (colorOptions[initialIndex]?.name) {
-      setSelectedColor(colorOptions[initialIndex].name);
+    const currentOpt = colorOptions.find(
+      (opt) => opt.name.toLowerCase() === selectedColor.toLowerCase()
+    );
+    // If currently selected colorway is disabled, switch to first available colorway
+    if (!currentOpt || isColorDisabled(currentOpt)) {
+      const firstValid = colorOptions.find((opt) => !isColorDisabled(opt));
+      if (firstValid && firstValid.name !== selectedColor) {
+        setSelectedColor(firstValid.name);
+      }
+    } else if (savedSelection?.colorName) {
+      const savedOpt = colorOptions.find(
+        (opt) => opt.name.toLowerCase() === savedSelection.colorName!.toLowerCase()
+      );
+      if (savedOpt && !isColorDisabled(savedOpt) && savedOpt.name !== selectedColor) {
+        setSelectedColor(savedOpt.name);
+      }
     }
-  }, [garment.id, savedSelection?.colorName]);
+  }, [garment.id, colorOptions, isColorDisabled, savedSelection?.colorName]);
 
   const activeColorOption = colorOptions.find(
     (opt) => opt.name.toLowerCase() === selectedColor.toLowerCase()
@@ -131,12 +188,77 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       ) || garment.variations![0]
     : null;
 
+  // Active sizes (from subcollection, variation or parent, sanitized of SKUs)
+  const fallbackSizes = activeColorOption?.sizes && activeColorOption.sizes.length > 0
+    ? activeColorOption.sizes
+    : activeVariation?.sizes && activeVariation.sizes.length > 0
+    ? activeVariation.sizes
+    : garment.sizes;
+
+  const availableSizes: GarmentSize[] = useMemo(() => {
+    return getGarmentAvailableSizes(subVariations, fallbackSizes);
+  }, [subVariations, fallbackSizes]);
+
+  // Helper to determine if a size variation is disabled
+  const isSizeDisabled = useCallback(
+    (size: GarmentSize) => {
+      const matchedSubVar = subVariations.find((v) => {
+        const norm =
+          normalizeSizeName(v.option_name) ||
+          (v.sku && !isSkuLike(v.sku) ? normalizeSizeName(v.sku) : null);
+        return (
+          norm?.toLowerCase() === size.toLowerCase() ||
+          v.option_name.toLowerCase() === size.toLowerCase()
+        );
+      });
+      if (matchedSubVar) {
+        return matchedSubVar.available_to_sell <= 0;
+      }
+      return false;
+    },
+    [subVariations]
+  );
+
+  // Initialize size to first enabled size (do not auto-select disabled size)
+  const [selectedSize, setSelectedSize] = useState<GarmentSize>(() => {
+    if (
+      savedSelection?.size &&
+      availableSizes.includes(savedSelection.size) &&
+      !isSizeDisabled(savedSelection.size)
+    ) {
+      return savedSelection.size;
+    }
+    const firstEnabled = availableSizes.find((s) => !isSizeDisabled(s));
+    return firstEnabled || availableSizes[0] || 'S';
+  });
+
+  // When sizes or subcollection load, ensure a disabled size is not auto-selected
+  useEffect(() => {
+    if (availableSizes.length > 0) {
+      if (!availableSizes.includes(selectedSize) || isSizeDisabled(selectedSize)) {
+        const firstAvailable = availableSizes.find((s) => !isSizeDisabled(s));
+        if (firstAvailable && firstAvailable !== selectedSize) {
+          setSelectedSize(firstAvailable);
+          setGarmentSelection(garment.id, { size: firstAvailable });
+        }
+      }
+    }
+  }, [availableSizes, subVariations, selectedSize, isSizeDisabled, garment.id]);
+
   const handleSelectColorOption = (opt: GarmentColorOption) => {
+    if (isColorDisabled(opt)) return;
     setSelectedColor(opt.name);
     let nextSize = selectedSize;
     if (opt.sizes && opt.sizes.length > 0 && !opt.sizes.includes(selectedSize)) {
-      nextSize = opt.sizes[0];
+      const validSize = opt.sizes.find((s) => !isSizeDisabled(s)) || opt.sizes[0];
+      nextSize = validSize;
       setSelectedSize(nextSize);
+    } else if (isSizeDisabled(selectedSize)) {
+      const validSize = availableSizes.find((s) => !isSizeDisabled(s));
+      if (validSize) {
+        nextSize = validSize;
+        setSelectedSize(nextSize);
+      }
     }
     setGarmentSelection(garment.id, {
       variationIndex: opt.index,
@@ -147,22 +269,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     setFailedIndices([]);
   };
 
-  // Active sizes (from subcollection, variation or parent)
-  const availableSizes: GarmentSize[] = subVariations.length > 0
-    ? subVariations.map((v) => v.option_name)
-    : activeColorOption?.sizes && activeColorOption.sizes.length > 0
-    ? activeColorOption.sizes
-    : activeVariation?.sizes && activeVariation.sizes.length > 0
-    ? activeVariation.sizes
-    : garment.sizes;
-
-  const [selectedSize, setSelectedSize] = useState<GarmentSize>(
-    savedSelection?.size && availableSizes.includes(savedSelection.size)
-      ? savedSelection.size
-      : (availableSizes[0] || 'S')
-  );
-
   const handleSelectSize = (size: GarmentSize) => {
+    if (isSizeDisabled(size)) return;
     setSelectedSize(size);
     setGarmentSelection(garment.id, {
       size,
@@ -254,13 +362,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [endDate, setEndDate] = useState<string>(defaultEndDate);
   const [durationDays, setDurationDays] = useState<number>(4);
 
-  // Accordion open/close states
-  const [openSection, setOpenSection] = useState<string | null>('details');
-
-  const toggleSection = (section: string) => {
-    setOpenSection((prev) => (prev === section ? null : section));
-  };
-
   const handleDateChange = (start: string, end: string, duration: number) => {
     setStartDate(start);
     setEndDate(end);
@@ -279,7 +380,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   };
 
   // Price calculations: prioritize live subcollection or variation price from database
-  const activeSubVar = subVariations.find((v) => v.option_name === selectedSize);
+  const activeSubVar = subVariations.find((v) => {
+    const norm = normalizeSizeName(v.option_name) || (v.sku && !isSkuLike(v.sku) ? normalizeSizeName(v.sku) : null);
+    return (
+      norm?.toLowerCase() === selectedSize.toLowerCase() ||
+      v.option_name?.toLowerCase() === selectedSize.toLowerCase()
+    );
+  });
   const effectiveBasePrice =
     (activeSubVar?.price && activeSubVar.price > 0 ? activeSubVar.price : null) ||
     (activeColorOption?.price && activeColorOption.price > 0 ? activeColorOption.price : null) ||
@@ -550,7 +657,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </span>
                 <div className="flex items-center justify-between mt-0.5">
                   <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
-                    Select Rental Options
+                    Rental Options
                   </h3>
                   <span className="text-[10px] text-[#5C5854] font-medium bg-white px-2 py-0.5 rounded border border-[#E8E4DF]">
                     Size {selectedSize} · {selectedColor} · {durationDays}D
@@ -560,12 +667,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
               {/* Step-by-Step Configuration Body */}
               <div className="p-4 sm:p-5 space-y-4">
-                {/* 1. Select Colorway */}
+                {/* 1. Colorway */}
                 {colorOptions.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="font-semibold text-xs text-[#141312] block tracking-wide">
-                        1. Select Colorway: <span className="font-serif text-[#80232F]">{selectedColor}</span>
+                        1. Colorway: <span className="font-serif text-[#80232F]">{selectedColor}</span>
                       </label>
                       {colorOptions.length > 1 && (
                         <span className="text-[10px] text-[#948E88]">
@@ -576,16 +683,20 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {colorOptions.map((opt) => {
                         const isSelected = selectedColor.toLowerCase() === opt.name.toLowerCase();
+                        const isOptDisabled = isColorDisabled(opt);
                         return (
                           <button
                             key={opt.name}
                             type="button"
                             id={`btn-color-${opt.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
-                            onClick={() => handleSelectColorOption(opt)}
-                            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                              isSelected
-                                ? 'border-[#141312] bg-[#FAF9F6] ring-1 ring-[#141312]'
-                                : 'border-[#E8E4DF] hover:border-[#141312]/40 bg-white'
+                            disabled={isOptDisabled}
+                            onClick={() => !isOptDisabled && handleSelectColorOption(opt)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${
+                              isOptDisabled
+                                ? 'opacity-35 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'
+                                : isSelected
+                                ? 'border-[#141312] bg-[#FAF9F6] ring-1 ring-[#141312] cursor-pointer'
+                                : 'border-[#E8E4DF] hover:border-[#141312]/40 bg-white cursor-pointer'
                             }`}
                           >
                             {opt.image ? (
@@ -593,7 +704,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                                 <img
                                   src={opt.image}
                                   alt={opt.name}
-                                  className="w-full h-full object-cover"
+                                  className={`w-full h-full object-cover ${isOptDisabled ? 'grayscale' : ''}`}
                                   referrerPolicy="no-referrer"
                                 />
                               </div>
@@ -603,10 +714,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                                 style={{ backgroundColor: opt.hex || '#ccc' }}
                               />
                             )}
-                            <span className="text-[11px] font-medium text-[#141312] truncate flex-1">
-                              {opt.name}
-                            </span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-[#141312] shrink-0" />}
+                            <div className="min-w-0 flex-1">
+                              <span className={`text-[11px] font-medium block truncate ${isOptDisabled ? 'line-through text-[#948E88]' : 'text-[#141312]'}`}>
+                                {opt.name}
+                              </span>
+                              {isOptDisabled && (
+                                <span className="text-[9px] text-[#B91C1C] block not-italic no-underline font-normal">
+                                  Unavailable
+                                </span>
+                              )}
+                            </div>
+                            {isSelected && !isOptDisabled && <Check className="w-3.5 h-3.5 text-[#141312] shrink-0" />}
                           </button>
                         );
                       })}
@@ -614,26 +732,27 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </div>
                 )}
 
-                {/* 2. Select Size */}
+                {/* 2. Size */}
                 <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
                   <div className="flex items-center justify-between">
                     <label className="font-semibold text-xs text-[#141312] block tracking-wide">
-                      2. Select Size: <span className="text-[#80232F]">{selectedSize}</span>
+                      2. Size: <span className="text-[#80232F]">{selectedSize}</span>
                     </label>
-                    {(garment.sku || subVariations[0]?.sku) && (
-                      <span className="text-[10px] text-[#948E88] font-mono">
-                        SKU: {garment.sku || subVariations[0]?.sku}
-                      </span>
-                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     {availableSizes.map((size) => {
                       const isSelected = selectedSize === size;
-                      const matchedSubVar = subVariations.find(
-                        (v) => v.option_name.toLowerCase() === size.toLowerCase()
-                      );
-                      const isAvailable = matchedSubVar ? matchedSubVar.available_to_sell > 0 : true;
+                      const matchedSubVar = subVariations.find((v) => {
+                        const norm =
+                          normalizeSizeName(v.option_name) ||
+                          (v.sku && !isSkuLike(v.sku) ? normalizeSizeName(v.sku) : null);
+                        return (
+                          norm?.toLowerCase() === size.toLowerCase() ||
+                          v.option_name.toLowerCase() === size.toLowerCase()
+                        );
+                      });
+                      const isAvailable = !isSizeDisabled(size);
 
                       return (
                         <button
@@ -641,13 +760,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           id={`btn-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                           type="button"
                           disabled={!isAvailable}
-                          onClick={() => handleSelectSize(size)}
-                          className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 cursor-pointer ${
+                          onClick={() => isAvailable && handleSelectSize(size)}
+                          className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 ${
                             !isAvailable
                               ? 'opacity-30 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'
                               : isSelected
-                              ? 'bg-[#141312] text-white border-[#141312]'
-                              : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
+                              ? 'bg-[#141312] text-white border-[#141312] cursor-pointer'
+                              : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312] cursor-pointer'
                           }`}
                         >
                           <span>{size}</span>
@@ -666,22 +785,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       );
                     })}
                   </div>
-
-                  <p className="text-[11px] text-[#5C5854] mt-1.5">
-                    Model is {garment.modelMeasurements.height} wearing size{' '}
-                    <strong className="text-[#141312]">{garment.modelMeasurements.wearingSize}</strong>.
-                  </p>
                 </div>
 
-                {/* 3. Rental Duration (Configurable rates: 4, 8, 12, 14 days) */}
+                {/* 3. Duration (Configurable rates: 4, 8, 12, 14 days) */}
                 <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
                   <div className="flex items-center justify-between">
                     <label className="font-semibold text-xs text-[#141312] block tracking-wide">
-                      3. Rental Duration: <span className="text-[#80232F]">{durationDays} Days</span>
+                      3. Duration: <span className="text-[#80232F]">{durationDays} Days</span>
                     </label>
-                    <span className="text-[10px] text-[#948E88]">
-                      +{formatPHP(garment.dailyExtraRate)}/extra day
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
@@ -706,8 +817,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         >
                           <span className="font-semibold text-xs">{days} Days</span>
                           <span
-                            className={`text-[10px] ${
-                              isSelected ? 'text-white/80' : 'text-[#5C5854]'
+                            className={`text-[10px] font-medium ${
+                              isSelected ? 'text-white/90' : 'text-[#141312]'
                             }`}
                           >
                             {formatPHP(priceForDays)}
@@ -718,11 +829,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </div>
                 </div>
 
-                {/* 4. Rental Dates */}
+                {/* 4. Dates */}
                 <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
                   <div className="flex items-center justify-between">
                     <label className="font-semibold text-xs text-[#141312] block tracking-wide">
-                      4. Rental Dates
+                      4. Dates
                     </label>
                     <button
                       type="button"
@@ -785,7 +896,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         {formatPHP(rentalPrice)}
                       </span>
                       <span className="text-xs text-[#5C5854]">
-                        (+{formatPHP(securityDeposit)} dep)
+                        ({formatPHP(securityDeposit)} refundable deposit · 50%)
                       </span>
                     </div>
                   </div>
@@ -847,13 +958,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* 6. Garment Specifications Accordions */}
-            <GarmentSpecifications
-              garment={garment}
-              openSection={openSection}
-              toggleSection={toggleSection}
-            />
           </div>
         </div>
       </div>
@@ -875,7 +979,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               </span>
             </div>
             <span className="text-[10px] text-[#5C5854]">
-              +{formatPHP(securityDeposit)} deposit hold
+              ({formatPHP(securityDeposit)} refundable deposit · 50%)
             </span>
           </div>
 

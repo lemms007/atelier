@@ -761,7 +761,7 @@ export async function fetchProductVariationsFromFirestore(
           variations.push({
             sku: data.sku || vDoc.id,
             store_id: data.store_id || garment.store_id || '',
-            option_name: data.option_name || vDoc.id,
+            option_name: data.option_name || data.size || data.name || '',
             price: Number(data.price || 0),
             sale_price: Number(data.sale_price || 0),
             quantity: Number(data.quantity || 0),
