@@ -11,9 +11,11 @@ import {
   getGarmentAvailableSizes,
   normalizeSizeName,
   isSkuLike,
+  getGarmentShop,
 } from '../../utils/formatters';
-import { X, Check, ShoppingBag, Sparkles, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Check, ShoppingBag, Zap, Calendar as CalendarIcon } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
+import { RentalCalendar } from '../pdp/RentalCalendar';
 import { fetchProductVariationsFromFirestore } from '../../services/firestoreProducts';
 
 interface VariationSelectModalProps {
@@ -35,8 +37,9 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   onSelectVariation,
   onClose,
 }) => {
-  const { addToCart, configuredDurations } = useApp();
+  const { addToCart, setIsCheckoutOpen, setGarmentSelection, configuredDurations } = useApp();
   const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
+  const [showCalendarGrid, setShowCalendarGrid] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -202,10 +205,18 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
     durationDays
   );
 
+  const securityDeposit = garment.securityDeposit ?? Math.max(0, Math.round(effectiveBasePrice * 0.5));
+
   // Current preview image
   const previewImage = activeOpt?.image || (activeVar?.images && activeVar.images[0]) || garment.images[0] || '';
 
-  const storeSource = garment.store || (garment.designer !== 'Atelier Manila' ? garment.designer : 'Love Humbly Shop');
+  const productSource = getGarmentShop(garment);
+
+  const isActionDisabled =
+    garment.is_available_for_rent === false ||
+    (garment.quantity !== undefined && garment.quantity <= 0) ||
+    isSizeDisabled(selectedSize) ||
+    (activeOpt && isColorDisabled(activeOpt));
 
   const handleSelectColorOption = (idx: number, opt: GarmentColorOption) => {
     if (isColorDisabled(opt)) return;
@@ -222,13 +233,32 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
         setSelectedSize(nextSize);
       }
     }
+    setGarmentSelection(garment.id, {
+      variationIndex: idx,
+      colorName: opt.name,
+      size: nextSize,
+    });
     onSelectVariation?.(idx, opt.name, nextSize);
+  };
+
+  const handleDateChange = (start: string, _end: string, days?: number) => {
+    setStartDate(start);
+    if (days && durationOptions.includes(days)) {
+      setDurationDays(days);
+    }
   };
 
   if (!isOpen) return null;
 
   const handleConfirmAddToCart = () => {
+    if (isActionDisabled) return;
     const chosenColor = activeOpt ? activeOpt.name : (garment.colors[0]?.name || 'Standard');
+
+    setGarmentSelection(garment.id, {
+      variationIndex: selectedVarIndex,
+      colorName: chosenColor,
+      size: selectedSize,
+    });
 
     addToCart({
       garmentId: garment.id,
@@ -239,33 +269,66 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
       endDate,
       durationDays,
       rentalPrice,
-      securityDeposit: garment.securityDeposit,
+      securityDeposit,
     });
 
     onSelectVariation?.(selectedVarIndex, chosenColor, selectedSize);
     onClose();
   };
 
+  const handleInstantReserve = () => {
+    if (isActionDisabled) return;
+    const chosenColor = activeOpt ? activeOpt.name : (garment.colors[0]?.name || 'Standard');
+
+    setGarmentSelection(garment.id, {
+      variationIndex: selectedVarIndex,
+      colorName: chosenColor,
+      size: selectedSize,
+    });
+
+    addToCart({
+      garmentId: garment.id,
+      garment,
+      selectedSize,
+      selectedColor: chosenColor,
+      startDate,
+      endDate,
+      durationDays,
+      rentalPrice,
+      securityDeposit,
+    });
+
+    onSelectVariation?.(selectedVarIndex, chosenColor, selectedSize);
+    onClose();
+    setIsCheckoutOpen(true);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div
         id="modal-variation-select"
         className="bg-[#FFFFFF] border border-[#E8E4DF] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
       >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#E8E4DF] flex items-center justify-between bg-[#FAF9F6]">
+        {/* Header: Patterned after Product Detail Page */}
+        <div className="p-4 sm:p-5 border-b border-[#E8E4DF] bg-[#FAF9F6]/80 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[#80232F] block">
-              {storeSource}
+              {productSource}
             </span>
-            <h3 className="font-serif text-lg font-bold text-[#141312]">
-              Rental Options
-            </h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
+                Rental Options
+              </h3>
+              <span className="text-[10px] text-[#5C5854] font-medium bg-white px-2 py-0.5 rounded border border-[#E8E4DF]">
+                Size {selectedSize} · {activeOpt?.name || 'Standard'} · {durationDays}D
+              </span>
+            </div>
           </div>
           <button
             id="btn-close-variation-modal"
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#E8E4DF]/50 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#E8E4DF]/50 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -284,27 +347,49 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-serif text-sm font-semibold text-[#141312] truncate">
-                {garment.name}
-              </h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-serif text-sm font-semibold text-[#141312] truncate">
+                  {garment.name}
+                </h4>
+                {garment.is_available_for_rent === false ? (
+                  <span className="text-[9px] bg-[#FEF3C7] text-[#78350F] border border-[#FDE68A] px-1.5 py-0.5 rounded font-medium shrink-0">
+                    Rental Paused
+                  </span>
+                ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
+                  <span className="text-[9px] bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-1.5 py-0.5 rounded font-medium shrink-0">
+                    Out of Stock
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-1.5 py-0.5 rounded font-medium shrink-0">
+                    Vault Ready
+                  </span>
+                )}
+              </div>
               <p className="text-[#5C5854] text-[11px] truncate mt-0.5">
-                {garment.productType || garment.category}
+                {garment.designer ? `${garment.designer} · ` : ''}{garment.productType || garment.category}
               </p>
               <div className="flex items-baseline gap-1.5 mt-1 font-semibold text-[#141312]">
                 <span className="font-serif text-sm">{formatPHP(rentalPrice)}</span>
                 <span className="text-[10px] text-[#948E88] font-normal">
-                  for {durationDays} days
+                  for {durationDays} days · {formatPHP(securityDeposit)} deposit
                 </span>
               </div>
             </div>
           </div>
 
           {/* 1. Colorway */}
-          {colorOptions.length > 1 && (
+          {colorOptions.length > 0 && (
             <div className="space-y-2">
-              <label className="font-semibold text-[#141312] block tracking-wide">
-                1. Colorway: <span className="font-serif text-[#80232F]">{activeOpt?.name}</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                  1. Colorway: <span className="font-serif text-[#80232F]">{activeOpt?.name}</span>
+                </label>
+                {colorOptions.length > 1 && (
+                  <span className="text-[10px] text-[#948E88]">
+                    {colorOptions.length} Colorways
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {colorOptions.map((opt, idx) => {
                   const isSelected = selectedVarIndex === idx;
@@ -314,6 +399,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                     <button
                       key={opt.name || idx}
                       type="button"
+                      id={`btn-modal-color-${opt.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                       disabled={isOptDisabled}
                       onClick={() => !isOptDisabled && handleSelectColorOption(idx, opt)}
                       className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${
@@ -358,9 +444,9 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
           )}
 
           {/* 2. Size */}
-          <div className="space-y-2">
+          <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-[#141312] block tracking-wide">
+              <label className="font-semibold text-xs text-[#141312] block tracking-wide">
                 2. Size: <span className="text-[#80232F]">{selectedSize}</span>
               </label>
             </div>
@@ -382,6 +468,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                   <button
                     key={size}
                     type="button"
+                    id={`btn-modal-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                     disabled={!isAvailable}
                     onClick={() => isAvailable && setSelectedSize(size)}
                     className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 ${
@@ -410,10 +497,10 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Duration Selection (Configurable rates: 4, 8, 12, 14 days) */}
-          <div className="space-y-2">
+          {/* 3. Duration */}
+          <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-[#141312] block tracking-wide">
+              <label className="font-semibold text-xs text-[#141312] block tracking-wide">
                 3. Duration: <span className="text-[#80232F]">{durationDays} Days</span>
               </label>
             </div>
@@ -429,10 +516,11 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                   <button
                     key={days}
                     type="button"
+                    id={`btn-modal-duration-${days}d`}
                     onClick={() => setDurationDays(days)}
-                    className={`p-2 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
+                    className={`p-2 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
                       isSelected
-                        ? 'bg-[#141312] text-white border-[#141312]'
+                        ? 'bg-[#141312] text-white border-[#141312] shadow-xs'
                         : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
                     }`}
                   >
@@ -450,14 +538,25 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
             </div>
           </div>
 
-          {/* 4. Rental Period Start Date */}
-          <div className="space-y-2">
-            <label className="font-semibold text-[#141312] block tracking-wide">
-              4. Dates
-            </label>
+          {/* 4. Dates */}
+          <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                4. Dates
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowCalendarGrid(!showCalendarGrid)}
+                className="text-[11px] font-medium text-[#80232F] hover:text-[#50131B] flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>{showCalendarGrid ? 'Hide Calendar' : 'View Calendar Grid'}</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-2 bg-[#FAF9F6] p-2.5 rounded-xl border border-[#E8E4DF]">
               <div>
-                <span className="text-[9px] uppercase tracking-wider text-[#948E88] block">
+                <span className="text-[9px] uppercase tracking-wider text-[#948E88] block font-medium">
                   Delivery / Start
                 </span>
                 <input
@@ -465,60 +564,104 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                   value={startDate}
                   min={defaultStartDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-white border border-[#E8E4DF] rounded px-2 py-1 text-xs text-[#141312] mt-0.5 font-medium"
+                  className="w-full bg-white border border-[#E8E4DF] rounded px-2 py-1 text-xs text-[#141312] mt-0.5 font-medium focus:outline-none focus:border-[#141312]"
                 />
               </div>
               <div>
-                <span className="text-[9px] uppercase tracking-wider text-[#948E88] block">
+                <span className="text-[9px] uppercase tracking-wider text-[#948E88] block font-medium">
                   Return by ({durationDays} Days)
                 </span>
                 <div className="w-full bg-[#EFECE6] border border-[#E8E4DF] rounded px-2 py-1 text-xs text-[#141312] mt-0.5 font-medium flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3 text-[#5C5854]" />
-                  <span>{formatDisplayDateShort(endDate)}</span>
+                  <CalendarIcon className="w-3 h-3 text-[#5C5854] shrink-0" />
+                  <span className="truncate">{formatDisplayDateShort(endDate)}</span>
                 </div>
               </div>
             </div>
+
+            {/* Optional expanded monthly calendar grid */}
+            {showCalendarGrid && (
+              <div className="pt-2 animate-fadeIn">
+                <RentalCalendar
+                  garment={garment}
+                  startDate={startDate}
+                  endDate={endDate}
+                  configuredDurations={durationOptions}
+                  onChangeDates={handleDateChange}
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-[#E8E4DF] bg-[#FAF9F6] flex items-center justify-between gap-3">
-          <div>
-            <span className="text-[9px] uppercase text-[#948E88] tracking-wider block">
-              Total to Pay
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="font-serif text-lg font-bold text-[#141312]">
-                {formatPHP(rentalPrice)}
+        {/* Footer: Price & Add to Bag / Rent Now CTA (Patterned after Product Detail Page) */}
+        <div className="p-4 sm:p-5 bg-[#FAF9F6] border-t border-[#E8E4DF] space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase tracking-wider text-[#948E88] block font-semibold">
+                Total to Pay
               </span>
-              <span className="text-[10px] text-[#5C5854]">
-                ({formatPHP(garment.securityDeposit ?? Math.round(effectiveBasePrice * 0.5))} refundable deposit · 50%)
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="font-serif text-2xl font-bold text-[#141312]">
+                  {formatPHP(rentalPrice)}
+                </span>
+                <span className="text-xs text-[#5C5854]">
+                  ({formatPHP(securityDeposit)} refundable deposit · 50%)
+                </span>
+              </div>
+            </div>
+
+            <div className="text-right">
+              {garment.is_available_for_rent === false ? (
+                <span className="text-[10px] bg-[#FEF3C7] text-[#78350F] border border-[#FDE68A] px-2 py-0.5 rounded font-medium">
+                  Rental Paused
+                </span>
+              ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
+                <span className="text-[10px] bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 py-0.5 rounded font-medium">
+                  Out of Stock
+                </span>
+              ) : (
+                <span className="text-[10px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">
+                  Vault Ready
+                </span>
+              )}
+              <span className="text-[10px] text-[#948E88] block mt-1">
+                Size {selectedSize} · {activeOpt?.name || 'Standard'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-2 rounded-lg text-xs font-medium text-[#5C5854] hover:text-[#141312] transition-colors"
-            >
-              Cancel
-            </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <button
               id="btn-confirm-variation-add-cart"
               type="button"
-              disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
+              disabled={isActionDisabled}
               onClick={handleConfirmAddToCart}
-              className="px-5 py-2.5 rounded-lg text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-11 px-4 rounded-lg text-xs font-semibold border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
+              <ShoppingBag className="w-4 h-4 stroke-[1.75]" />
               <span>
                 {garment.is_available_for_rent === false
                   ? 'Rental Paused'
                   : garment.quantity !== undefined && garment.quantity <= 0
                   ? 'Out of Stock'
                   : 'Add to Bag'}
+              </span>
+            </button>
+
+            <button
+              id="btn-modal-rent-now"
+              type="button"
+              disabled={isActionDisabled}
+              onClick={handleInstantReserve}
+              className="h-11 px-4 rounded-lg text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Zap className="w-4 h-4 fill-white" />
+              <span>
+                {garment.is_available_for_rent === false
+                  ? 'Unavailable'
+                  : garment.quantity !== undefined && garment.quantity <= 0
+                  ? 'Out of Stock'
+                  : 'Instant Reserve'}
               </span>
             </button>
           </div>
