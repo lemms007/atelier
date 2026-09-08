@@ -68,12 +68,24 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
             className="group-hover:scale-[1.02] transition-transform duration-500 ease-out"
           />
 
-          {/* Variations Badge */}
-          {hasVariations && garment.variations!.length > 1 && (
-            <span className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-sm text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
-              {garment.variations!.length} Colors
-            </span>
-          )}
+          {/* Rental Status / Stock Badges */}
+          <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
+            {garment.is_available_for_rent === false ? (
+              <span className="bg-[#78350F]/90 backdrop-blur-sm text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shadow-xs">
+                Rental Paused
+              </span>
+            ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
+              <span className="bg-[#991B1B]/90 backdrop-blur-sm text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shadow-xs">
+                Out of Stock
+              </span>
+            ) : null}
+
+            {hasVariations && garment.variations!.length > 1 && (
+              <span className="bg-black/75 backdrop-blur-sm text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
+                {garment.variations!.length} Colors
+              </span>
+            )}
+          </div>
 
           {/* Wishlist Button */}
           <button
@@ -149,11 +161,23 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
           {/* Add to Bag Button with Variation Dialog */}
           <button
             id={`btn-card-add-cart-${garment.id}`}
-            onClick={handleOpenVariationModal}
-            className="w-full py-1.5 px-2.5 rounded text-xs font-medium border transition-all flex items-center justify-center gap-1.5 bg-[#FAF9F6] hover:bg-[#141312] text-[#141312] hover:text-white border-[#E8E4DF] hover:border-[#141312] active:scale-95"
+            onClick={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0) ? (e) => { e.stopPropagation(); setSelectedGarment(garment); } : handleOpenVariationModal}
+            className={`w-full py-1.5 px-2.5 rounded text-xs font-medium border transition-all flex items-center justify-center gap-1.5 ${
+              garment.is_available_for_rent === false
+                ? 'bg-[#FAF9F6] text-[#78350F] border-[#FDE68A] hover:bg-[#FEF3C7]'
+                : garment.quantity !== undefined && garment.quantity <= 0
+                ? 'bg-[#FAF9F6] text-[#991B1B] border-[#FECACA] hover:bg-[#FEE2E2]'
+                : 'bg-[#FAF9F6] hover:bg-[#141312] text-[#141312] hover:text-white border-[#E8E4DF] hover:border-[#141312] active:scale-95'
+            }`}
           >
             <ShoppingBag className="w-3 h-3 stroke-[1.75]" />
-            <span>Add to Bag</span>
+            <span>
+              {garment.is_available_for_rent === false
+                ? 'Rental Paused'
+                : garment.quantity !== undefined && garment.quantity <= 0
+                ? 'Out of Stock'
+                : 'Add to Bag'}
+            </span>
           </button>
         </div>
       </div>

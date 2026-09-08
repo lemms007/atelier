@@ -576,9 +576,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">
-                    Vault Ready
-                  </span>
+                  {garment.is_available_for_rent === false ? (
+                    <span className="text-[10px] bg-[#FEF3C7] text-[#78350F] border border-[#FDE68A] px-2 py-0.5 rounded font-medium">
+                      Rental Paused
+                    </span>
+                  ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
+                    <span className="text-[10px] bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 py-0.5 rounded font-medium">
+                      Out of Stock
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">
+                      Vault Ready
+                    </span>
+                  )}
                   <span className="text-[10px] text-[#948E88] block mt-1">
                     Size {selectedSize} · {selectedColor}
                   </span>
@@ -589,21 +599,35 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <button
                   id="btn-inline-add-to-cart"
                   type="button"
+                  disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
                   onClick={handleAddToCart}
-                  className="h-11 px-4 rounded-md text-xs font-semibold border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="h-11 px-4 rounded-md text-xs font-semibold border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ShoppingBag className="w-4 h-4 stroke-[1.75]" />
-                  <span>Add Dress to Bag</span>
+                  <span>
+                    {garment.is_available_for_rent === false
+                      ? 'Rental Paused'
+                      : garment.quantity !== undefined && garment.quantity <= 0
+                      ? 'Out of Stock'
+                      : 'Add Dress to Bag'}
+                  </span>
                 </button>
 
                 <button
                   id="btn-inline-rent-now"
                   type="button"
+                  disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
                   onClick={handleRentNow}
-                  className="h-11 px-4 rounded-md text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="h-11 px-4 rounded-md text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Instant Reserve</span>
+                  <span>
+                    {garment.is_available_for_rent === false
+                      ? 'Unavailable'
+                      : garment.quantity !== undefined && garment.quantity <= 0
+                      ? 'Out of Stock'
+                      : 'Instant Reserve'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -644,21 +668,35 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             <button
               id="btn-pdp-add-to-cart"
               type="button"
+              disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
               onClick={handleAddToCart}
-              className="h-10 px-4 sm:px-5 rounded-md text-xs font-medium border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center gap-1.5"
+              className="h-10 px-4 sm:px-5 rounded-md text-xs font-medium border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShoppingBag className="w-3.5 h-3.5 stroke-[1.75]" />
-              <span>Add to Bag</span>
+              <span>
+                {garment.is_available_for_rent === false
+                  ? 'Rental Paused'
+                  : garment.quantity !== undefined && garment.quantity <= 0
+                  ? 'Out of Stock'
+                  : 'Add to Bag'}
+              </span>
             </button>
 
             <button
               id="btn-pdp-rent-now"
               type="button"
+              disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
               onClick={handleRentNow}
-              className="h-10 px-5 sm:px-6 rounded-md text-xs font-medium text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5"
+              className="h-10 px-5 sm:px-6 rounded-md text-xs font-medium text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Zap className="w-3.5 h-3.5 fill-white" />
-              <span>Rent Now</span>
+              <span>
+                {garment.is_available_for_rent === false
+                  ? 'Unavailable'
+                  : garment.quantity !== undefined && garment.quantity <= 0
+                  ? 'Out of Stock'
+                  : 'Rent Now'}
+              </span>
             </button>
           </div>
         </div>

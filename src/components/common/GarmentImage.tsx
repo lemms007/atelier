@@ -5,6 +5,8 @@ import {
   markImageLoaded,
   markImageFailed,
   isImageFailed,
+  getCachedBlobUrl,
+  getCachedOrFetchImage,
 } from '../../utils/imageCache';
 
 interface GarmentImageProps {
@@ -23,8 +25,8 @@ interface GarmentImageProps {
 }
 
 /**
- * High-performance GarmentImage renderer with client-side memory caching,
- * lazy-loading, async decoding, and network request deduplication.
+ * High-performance GarmentImage renderer with multi-tier CacheStorage & memory caching,
+ * async decoding, bandwidth reduction, and network request deduplication.
  */
 export const GarmentImage: React.FC<GarmentImageProps> = ({
   src,
@@ -51,22 +53,57 @@ export const GarmentImage: React.FC<GarmentImageProps> = ({
     isImageFailed(rawClean);
   const cleanSrc = isInvalid ? null : rawClean;
 
+  const [activeDisplaySrc, setActiveDisplaySrc] = useState<string | null>(() => {
+    if (!cleanSrc) return null;
+    return getCachedBlobUrl(cleanSrc) || cleanSrc;
+  });
+
   const [hasError, setHasError] = useState(isInvalid);
   const [isLoaded, setIsLoaded] = useState(() => (cleanSrc ? isImageCached(cleanSrc) : false));
 
-  // Reset states whenever the image source changes (e.g. clicking thumbnail)
+  // Retrieve from CacheStorage or fetch with background caching
   useEffect(() => {
+    let isCancelled = false;
+
     if (!cleanSrc || isImageFailed(cleanSrc)) {
       setHasError(true);
       setIsLoaded(false);
-    } else if (isImageCached(cleanSrc)) {
+      setActiveDisplaySrc(null);
+      return;
+    }
+
+    const memoryBlob = getCachedBlobUrl(cleanSrc);
+    if (memoryBlob) {
+      setActiveDisplaySrc(memoryBlob);
+      setHasError(false);
+      setIsLoaded(true);
+      return;
+    }
+
+    if (isImageCached(cleanSrc)) {
+      setActiveDisplaySrc(cleanSrc);
       setHasError(false);
       setIsLoaded(true);
     } else {
       setHasError(false);
       setIsLoaded(false);
     }
-  }, [cleanSrc]);
+
+    // Attempt CacheStorage fetch for bandwidth saving
+    getCachedOrFetchImage(cleanSrc).then((cachedResult) => {
+      if (isCancelled) return;
+      if (cachedResult) {
+        setActiveDisplaySrc(cachedResult);
+        setHasError(false);
+        setIsLoaded(true);
+        if (onImageLoad) onImageLoad();
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [cleanSrc, onImageLoad]);
 
   const handleImageError = () => {
     if (cleanSrc) {
@@ -80,7 +117,7 @@ export const GarmentImage: React.FC<GarmentImageProps> = ({
 
   const handleImageLoad = () => {
     if (cleanSrc) {
-      markImageLoaded(cleanSrc);
+      markImageLoaded(cleanSrc, isImageCached(cleanSrc));
     }
     setIsLoaded(true);
     if (onImageLoad) {
@@ -125,6 +162,8 @@ export const GarmentImage: React.FC<GarmentImageProps> = ({
     );
   }
 
+  const imageSrcToUse = activeDisplaySrc || cleanSrc;
+
   return (
     <div className={`relative w-full h-full overflow-hidden bg-[#F5F3EF] ${aspectRatio} ${className}`}>
       {!isLoaded && (
@@ -133,8 +172,8 @@ export const GarmentImage: React.FC<GarmentImageProps> = ({
         </div>
       )}
       <img
-        key={cleanSrc}
-        src={cleanSrc}
+        key={imageSrcToUse}
+        src={imageSrcToUse}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"

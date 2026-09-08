@@ -24,6 +24,11 @@ export const CatalogView: React.FC = () => {
   // Filter garments based on category, shop, wishlist, and search
   const filteredGarments = garments
     .filter((g) => {
+      // Exclude disabled or unlisted products from the public customer catalog
+      if (g.status === 'disabled' || g.status === 'archived') {
+        return false;
+      }
+
       // Exclude any sale items defensively
       if (
         g.isSale ||
@@ -89,18 +94,6 @@ export const CatalogView: React.FC = () => {
             <span className="bg-[#FAF0F1] border border-[#F2D6D8] px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1 text-[#80232F] font-medium">
               <Heart className="w-3 h-3 fill-current" />
               Wish List
-            </span>
-          )}
-          {selectedShop !== 'All' && (
-            <span className="bg-[#F5F3EF] border border-[#E8E4DF] px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1 text-[#141312]">
-              <span>Shop: {selectedShop}</span>
-              <button
-                onClick={() => setSelectedShop('All')}
-                className="hover:text-[#80232F] ml-0.5 cursor-pointer"
-                aria-label="Clear shop filter"
-              >
-                ×
-              </button>
             </span>
           )}
           {searchQuery && (

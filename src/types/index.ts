@@ -35,6 +35,7 @@ export interface GarmentVariation {
   basePrice4Days?: number;
   dailyExtraRate?: number;
   securityDeposit?: number;
+  is_available_for_rent?: boolean;
 }
 
 export interface Garment {
@@ -60,6 +61,9 @@ export interface Garment {
   basePrice4Days: number; // 4-day minimum rate in PHP
   dailyExtraRate: number; // rate per day beyond 4 days in PHP
   securityDeposit: number; // refundable deposit in PHP
+  quantity?: number; // Total stock units available in vault
+  available_to_sell?: number;
+  lowStockThreshold?: number;
   sizes: GarmentSize[];
   colors: GarmentColor[];
   variations?: GarmentVariation[];
@@ -94,14 +98,27 @@ export interface Garment {
  * Raw and normalized Firestore Database Schema types
  */
 export interface FirestoreRentalProduct {
-  title: string;
-  store: string;
-  rental_price: number;
-  raw_price: string;
-  original_image_url: string;
-  supabase_image_url: string;
-  product_url: string;
+  title?: string;
+  name?: string;
+  store?: string;
+  rental_price?: number;
+  raw_price?: string;
+  original_image_url?: string;
+  supabase_image_url?: string;
+  product_url?: string;
   updated_at?: any;
+  basePrice4Days?: number;
+  retailValue?: number;
+  dailyExtraRate?: number;
+  securityDeposit?: number;
+  quantity?: number;
+  available_to_sell?: number;
+  lowStockThreshold?: number;
+  is_available_for_rent?: boolean;
+  featured?: boolean;
+  variations?: any[];
+  images?: string[];
+  [key: string]: any;
 }
 
 export interface FirestoreRawProduct {

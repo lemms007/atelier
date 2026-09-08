@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { RentalOrder, OrderStatus } from '../../types';
 import { formatPHP, formatDisplayDateShort } from '../../utils/formatters';
@@ -41,6 +42,17 @@ export const AdminOrdersPortal: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [adminNoteInput, setAdminNoteInput] = useState<string>('');
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+
+  // Lock body scroll when inspection zoom is active
+  useEffect(() => {
+    if (previewImage) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [previewImage]);
 
   // If sub-tab is inventory or ledger, render their dedicated backoffice view
   if (adminTab === 'inventory') {
@@ -265,12 +277,23 @@ export const AdminOrdersPortal: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF]">
+                    <div
+                      onClick={() =>
+                        setPreviewImage({
+                          url: selectedOrder.kyc.frontIdImage,
+                          title: `Front of ID - ${selectedOrder.shipping.fullName}`,
+                        })
+                      }
+                      className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF] cursor-pointer group relative"
+                    >
                       <img
                         src={selectedOrder.kyc.frontIdImage}
                         alt="Front ID"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                        <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                      </div>
                     </div>
                   </div>
 
@@ -285,18 +308,29 @@ export const AdminOrdersPortal: React.FC = () => {
                             title: `Biometric Selfie - ${selectedOrder.shipping.fullName}`,
                           })
                         }
-                        className="text-[#5C5854] hover:text-[#141312] flex items-center gap-0.5 text-[10px] font-medium"
+                        className="text-[#5C5854] hover:text-[#141312] flex items-center gap-0.5 text-[10px] font-medium cursor-pointer"
                       >
                         <Maximize2 className="w-3 h-3" /> Zoom
                       </button>
                     </div>
 
-                    <div className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF]">
+                    <div
+                      onClick={() =>
+                        setPreviewImage({
+                          url: selectedOrder.kyc.selfieWithIdImage,
+                          title: `Biometric Selfie - ${selectedOrder.shipping.fullName}`,
+                        })
+                      }
+                      className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF] cursor-pointer group relative"
+                    >
                       <img
                         src={selectedOrder.kyc.selfieWithIdImage}
                         alt="Selfie"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                        <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -326,17 +360,28 @@ export const AdminOrdersPortal: React.FC = () => {
                             title: `Payment Receipt - Ref: ${selectedOrder.payment.referenceNumber}`,
                           })
                         }
-                        className="text-[#5C5854] hover:text-[#141312] flex items-center gap-0.5 text-[10px] font-medium"
+                        className="text-[#5C5854] hover:text-[#141312] flex items-center gap-0.5 text-[10px] font-medium cursor-pointer"
                       >
                         <Maximize2 className="w-3 h-3" /> Zoom
                       </button>
                     </div>
-                    <div className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF]">
+                    <div
+                      onClick={() =>
+                        setPreviewImage({
+                          url: selectedOrder.payment.receiptImage,
+                          title: `Payment Receipt - Ref: ${selectedOrder.payment.referenceNumber}`,
+                        })
+                      }
+                      className="aspect-[16/10] rounded overflow-hidden bg-[#FAF9F6] border border-[#E8E4DF] cursor-pointer group relative"
+                    >
                       <img
                         src={selectedOrder.payment.receiptImage}
                         alt="Receipt"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                        <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                      </div>
                     </div>
                   </div>
 
@@ -445,24 +490,36 @@ export const AdminOrdersPortal: React.FC = () => {
       )}
 
       {/* Lightbox Zoom for Inspection Proofs */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 animate-fadeIn">
-          <button
+      {previewImage &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-60 bg-black/90 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-fadeIn select-none"
             onClick={() => setPreviewImage(null)}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30"
           >
-            <X className="w-4 h-4" />
-          </button>
-          <img
-            src={previewImage.url}
-            alt={previewImage.title}
-            className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-xl"
-          />
-          <p className="text-white/90 font-serif text-xs mt-3 text-center">
-            {previewImage.title}
-          </p>
-        </div>
-      )}
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer z-10"
+              title="Close Preview"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div
+              className="relative max-h-[85vh] max-w-[92vw] flex flex-col items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl border border-white/10"
+                referrerPolicy="no-referrer"
+              />
+              <p className="text-white/90 font-serif text-xs mt-3 text-center bg-black/60 px-3 py-1 rounded-full border border-white/10">
+                {previewImage.title}
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

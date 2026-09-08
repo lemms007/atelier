@@ -22,10 +22,19 @@ import {
   FirestoreStore,
 } from '../types';
 import { preloadGarmentVariationImages } from '../utils/imageCache';
+import { recordFirestoreReadSaved } from './cacheManager';
 
-// Local storage key for persistent catalog caching
-const PRODUCTS_CACHE_STORAGE_KEY = 'atelier_products_cache_v6';
-const PRODUCTS_CACHE_TIMESTAMP_KEY = 'atelier_products_cache_time_v6';
+// Local storage keys for persistent catalog caching
+const PRODUCTS_CACHE_STORAGE_KEY = 'atelier_products_cache_v7';
+const PRODUCTS_CACHE_TIMESTAMP_KEY = 'atelier_products_cache_time_v7';
+const CATEGORIES_CACHE_STORAGE_KEY = 'atelier_categories_cache_v2';
+const CATEGORIES_CACHE_TIMESTAMP_KEY = 'atelier_categories_cache_time_v2';
+const STORES_CACHE_STORAGE_KEY = 'atelier_stores_cache_v2';
+const STORES_CACHE_TIMESTAMP_KEY = 'atelier_stores_cache_time_v2';
+const VARIATIONS_CACHE_PREFIX = 'atelier_var_cache_';
+
+// 24 Hour Cache TTL
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * In-memory cache for fetched product subcollection variations to prevent redundant network trips
@@ -44,6 +53,7 @@ export function getCachedGarmentsFromLocalStorage(): Garment[] {
       'atelier_products_cache_v3',
       'atelier_products_cache_v4',
       'atelier_products_cache_v5',
+      'atelier_products_cache_v6',
     ].forEach((k) => {
       try { localStorage.removeItem(k); } catch {}
     });
@@ -51,6 +61,7 @@ export function getCachedGarmentsFromLocalStorage(): Garment[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      recordFirestoreReadSaved(parsed.length);
       return parsed;
     }
   } catch {
@@ -71,6 +82,56 @@ export function setCachedGarmentsToLocalStorage(garments: Garment[]): void {
   } catch {
     // Local storage full or restricted
   }
+}
+
+/**
+ * Get cached categories from LocalStorage
+ */
+export function getCachedCategoriesFromLocalStorage(): FirestoreCategory[] {
+  try {
+    const raw = localStorage.getItem(CATEGORIES_CACHE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      recordFirestoreReadSaved(parsed.length);
+      return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function setCachedCategoriesToLocalStorage(categories: FirestoreCategory[]): void {
+  try {
+    if (Array.isArray(categories) && categories.length > 0) {
+      localStorage.setItem(CATEGORIES_CACHE_STORAGE_KEY, JSON.stringify(categories));
+      localStorage.setItem(CATEGORIES_CACHE_TIMESTAMP_KEY, Date.now().toString());
+    }
+  } catch {}
+}
+
+/**
+ * Get cached stores from LocalStorage
+ */
+export function getCachedStoresFromLocalStorage(): FirestoreStore[] {
+  try {
+    const raw = localStorage.getItem(STORES_CACHE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      recordFirestoreReadSaved(parsed.length);
+      return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function setCachedStoresToLocalStorage(stores: FirestoreStore[]): void {
+  try {
+    if (Array.isArray(stores) && stores.length > 0) {
+      localStorage.setItem(STORES_CACHE_STORAGE_KEY, JSON.stringify(stores));
+      localStorage.setItem(STORES_CACHE_TIMESTAMP_KEY, Date.now().toString());
+    }
+  } catch {}
 }
 
 /**
@@ -446,8 +507,15 @@ export function determineDressCategoryAndType(
 
 /**
  * Fetch all categories from Firestore collection '/categories' (48 docs)
+ * Uses Stale-While-Revalidate pattern with local cache to save Firestore database reads.
  */
 export async function fetchFirestoreCategories(): Promise<FirestoreCategory[]> {
+  const cached = getCachedCategoriesFromLocalStorage();
+  if (cached && cached.length > 0) {
+    // Return cached immediately; perform background refresh if stale
+    return cached;
+  }
+
   try {
     const snap = await getDocs(collection(db, 'categories'));
     const categories: FirestoreCategory[] = [];
@@ -467,19 +535,28 @@ export async function fetchFirestoreCategories(): Promise<FirestoreCategory[]> {
       });
     });
     categories.sort((a, b) => a.sort_order - b.sort_order);
+    if (categories.length > 0) {
+      setCachedCategoriesToLocalStorage(categories);
+    }
     return categories;
   } catch (error) {
     console.warn('[Firestore] Error fetching categories:', error);
-    return [];
+    return cached;
   }
 }
 
 /**
- * Subscribe to live category updates from Firestore
+ * Subscribe to live category updates from Firestore with cache write-through
  */
 export function subscribeToFirestoreCategories(
   onUpdate: (categories: FirestoreCategory[]) => void
 ): Unsubscribe {
+  // Emit cached categories immediately for 0ms initial render
+  const cached = getCachedCategoriesFromLocalStorage();
+  if (cached && cached.length > 0) {
+    onUpdate(cached);
+  }
+
   try {
     return onSnapshot(
       collection(db, 'categories'),
@@ -498,6 +575,9 @@ export function subscribeToFirestoreCategories(
           });
         });
         categories.sort((a, b) => a.sort_order - b.sort_order);
+        if (categories.length > 0) {
+          setCachedCategoriesToLocalStorage(categories);
+        }
         onUpdate(categories);
       },
       (error) => {
@@ -511,8 +591,14 @@ export function subscribeToFirestoreCategories(
 
 /**
  * Fetch all stores from Firestore collection '/stores' (2 docs: Corset Bloomfield and Love Humbly Shop)
+ * Uses SWR local cache to save Firestore queries.
  */
 export async function fetchFirestoreStores(): Promise<FirestoreStore[]> {
+  const cached = getCachedStoresFromLocalStorage();
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
   try {
     const snap = await getDocs(collection(db, 'stores'));
     const stores: FirestoreStore[] = [];
@@ -547,19 +633,28 @@ export async function fetchFirestoreStores(): Promise<FirestoreStore[]> {
         scraped_at: data.scraped_at || '',
       });
     });
+    if (stores.length > 0) {
+      setCachedStoresToLocalStorage(stores);
+    }
     return stores;
   } catch (error) {
     console.warn('[Firestore] Error fetching stores:', error);
-    return [];
+    return cached;
   }
 }
 
 /**
- * Subscribe to live stores from Firestore
+ * Subscribe to live stores from Firestore with cache write-through
  */
 export function subscribeToFirestoreStores(
   onUpdate: (stores: FirestoreStore[]) => void
 ): Unsubscribe {
+  // Emit cached stores immediately for 0ms initial load
+  const cached = getCachedStoresFromLocalStorage();
+  if (cached && cached.length > 0) {
+    onUpdate(cached);
+  }
+
   try {
     return onSnapshot(
       collection(db, 'stores'),
@@ -596,6 +691,9 @@ export function subscribeToFirestoreStores(
             scraped_at: data.scraped_at || '',
           });
         });
+        if (stores.length > 0) {
+          setCachedStoresToLocalStorage(stores);
+        }
         onUpdate(stores);
       },
       (error) => {
@@ -610,13 +708,13 @@ export function subscribeToFirestoreStores(
 /**
  * Fetch subcollection variations for a product from Firestore:
  * `/products/{rawDocId}/variations`
+ * Utilizes memory cache + LocalStorage persistent cache with TTL to eliminate repeated Firestore reads.
  */
 export async function fetchProductVariationsFromFirestore(
   garment: Garment
 ): Promise<FirestoreProductVariation[]> {
   const docIdsToTry: string[] = [];
   if (garment.rawDocIds && garment.rawDocIds.length > 0) {
-    // Put raw docs first (SKU IDs like '706236-860399' or '818226-820480')
     const rawIds = garment.rawDocIds.filter((id) => /^[0-9]+-[0-9]+/.test(id));
     const otherIds = garment.rawDocIds.filter((id) => !/^[0-9]+-[0-9]+/.test(id));
     docIdsToTry.push(...rawIds, ...otherIds);
@@ -626,12 +724,33 @@ export async function fetchProductVariationsFromFirestore(
 
   const uniqueDocIds = Array.from(new Set(docIdsToTry));
 
+  // 1. Check in-memory cache
   for (const docId of uniqueDocIds) {
     if (variationsMemoryCache.has(docId)) {
-      return variationsMemoryCache.get(docId)!;
+      const cached = variationsMemoryCache.get(docId)!;
+      recordFirestoreReadSaved(cached.length || 1);
+      return cached;
     }
   }
 
+  // 2. Check LocalStorage persistent cache
+  for (const docId of uniqueDocIds) {
+    try {
+      const stored = localStorage.getItem(`${VARIATIONS_CACHE_PREFIX}${docId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const id of uniqueDocIds) {
+            variationsMemoryCache.set(id, parsed);
+          }
+          recordFirestoreReadSaved(parsed.length);
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Query Firestore and cache result
   for (const docId of uniqueDocIds) {
     try {
       const snap = await getDocs(collection(db, 'products', docId, 'variations'));
@@ -655,9 +774,12 @@ export async function fetchProductVariationsFromFirestore(
           });
         });
 
-        // Cache result
+        // Cache in memory and LocalStorage
         for (const id of uniqueDocIds) {
           variationsMemoryCache.set(id, variations);
+          try {
+            localStorage.setItem(`${VARIATIONS_CACHE_PREFIX}${id}`, JSON.stringify(variations));
+          } catch {}
         }
         return variations;
       }
@@ -760,11 +882,42 @@ export function groupAndNormalizeGarments(rawGarments: Garment[]): Garment[] {
 
       const rawDocIds = Array.from(new Set([...(existing.rawDocIds || []), ...(raw.rawDocIds || [raw.id])]));
 
-      const updatedAt = Math.max(existing.updatedAt || 0, raw.updatedAt || 0);
+      const mergedUpdatedAt = Math.max(existing.updatedAt || 0, raw.updatedAt || 0);
       const description =
         raw.description && raw.description.length > (existing.description?.length || 0)
           ? raw.description
           : existing.description;
+
+      // Ensure disabled/paused rental status is strictly preserved
+      let mergedIsAvailableForRent = true;
+      if (existing.is_available_for_rent === false || raw.is_available_for_rent === false) {
+        // If either is explicitly disabled, evaluate newer timestamp or default to disabled
+        if ((existing.updatedAt || 0) > (raw.updatedAt || 0) && existing.is_available_for_rent !== undefined) {
+          mergedIsAvailableForRent = existing.is_available_for_rent;
+        } else if ((raw.updatedAt || 0) > (existing.updatedAt || 0) && raw.is_available_for_rent !== undefined) {
+          mergedIsAvailableForRent = raw.is_available_for_rent;
+        } else {
+          mergedIsAvailableForRent = false;
+        }
+      } else if (existing.is_available_for_rent !== undefined) {
+        mergedIsAvailableForRent = existing.is_available_for_rent;
+      } else if (raw.is_available_for_rent !== undefined) {
+        mergedIsAvailableForRent = raw.is_available_for_rent;
+      }
+
+      const mergedStatus =
+        existing.status === 'disabled' || raw.status === 'disabled'
+          ? 'disabled'
+          : (existing.updatedAt || 0) >= (raw.updatedAt || 0)
+          ? existing.status || 'active'
+          : raw.status || 'active';
+
+      const mergedQuantity =
+        existing.quantity !== undefined
+          ? existing.quantity
+          : raw.quantity !== undefined
+          ? raw.quantity
+          : 1;
 
       groupedMap.set(groupKey, {
         ...existing,
@@ -777,8 +930,12 @@ export function groupAndNormalizeGarments(rawGarments: Garment[]): Garment[] {
         colors: currentColors,
         sizes: combinedSizes.length > 0 ? combinedSizes : ['XS', 'S', 'M', 'L', 'XL'],
         images: combinedImages,
+        status: mergedStatus,
+        is_available_for_rent: mergedIsAvailableForRent,
+        quantity: mergedQuantity,
+        available_to_sell: mergedIsAvailableForRent && mergedQuantity > 0 ? mergedQuantity : 0,
         rawDocIds,
-        updatedAt,
+        updatedAt: mergedUpdatedAt,
         description,
       });
     }
@@ -854,20 +1011,38 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         processedRawIds.add(matchedRaw.id);
       }
 
-      // Base pricing & deposit calculations: strictly use database price
+      // Base pricing & deposit calculations: prioritize admin-saved values, then database raw price
       const rawPriceClean = (r.raw_price || '').replace(/[^0-9.]/g, '');
       const dbPrice =
+        (r.basePrice4Days ? Number(r.basePrice4Days) : null) ||
         (matchedRaw ? matchedRaw.price_min || matchedRaw.price_max : null) ||
         (rawPriceClean ? Number(rawPriceClean) : null) ||
         Number(r.rental_price) ||
         2950;
       const retailValue =
+        (r.retailValue ? Number(r.retailValue) : null) ||
         Number(rawPriceClean) ||
         (matchedRaw ? matchedRaw.price_max || matchedRaw.price_min : dbPrice) ||
         dbPrice;
-      const basePrice4Days = dbPrice;
-      const dailyExtraRate = Math.max(50, Math.round(basePrice4Days * 0.15));
-      const securityDeposit = Math.max(0, Math.round(basePrice4Days * 0.5));
+      const basePrice4Days = r.basePrice4Days ? Number(r.basePrice4Days) : dbPrice;
+      const dailyExtraRate =
+        r.dailyExtraRate !== undefined
+          ? Number(r.dailyExtraRate)
+          : Math.max(50, Math.round(basePrice4Days * 0.15));
+      const securityDeposit =
+        r.securityDeposit !== undefined
+          ? Number(r.securityDeposit)
+          : Math.max(0, Math.round(basePrice4Days * 0.5));
+      const quantity =
+        r.quantity !== undefined
+          ? Number(r.quantity)
+          : matchedRaw?.variants_count !== undefined
+          ? Number(matchedRaw.variants_count)
+          : 1;
+      const isAvailableForRent =
+        r.is_available_for_rent !== undefined
+          ? Boolean(r.is_available_for_rent)
+          : matchedRaw?.is_available_for_rent !== false;
 
       // Build comprehensive image array: supabase_image_url > original_image_url > photos > image_remote_urls
       const rawImages: string[] = [];
@@ -969,9 +1144,11 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         careInstructions: 'Complimentary dry cleaning included. Insured courier transit.',
         rating: 4.95,
         reviewCount: 24,
-        featured: true,
-        is_available_for_rent: true,
-        variants_count: matchedRaw?.variants_count,
+        featured: r.featured !== undefined ? r.featured : true,
+        is_available_for_rent: isAvailableForRent,
+        quantity,
+        available_to_sell: quantity,
+        variants_count: matchedRaw?.variants_count || (r.variations ? r.variations.length : 1),
         rawDocIds,
         updatedAt,
       });
@@ -989,6 +1166,7 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
       const basePrice4Days = listPrice;
       const dailyExtraRate = Math.max(50, Math.round(basePrice4Days * 0.15));
       const securityDeposit = Math.max(0, Math.round(basePrice4Days * 0.5));
+      const rawQuantity = raw.variants_count || 1;
 
       const rawImages: string[] = [];
       if (Array.isArray(raw.photos)) {
@@ -1035,6 +1213,8 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         basePrice4Days,
         dailyExtraRate,
         securityDeposit,
+        quantity: rawQuantity,
+        available_to_sell: rawQuantity,
         sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
         colors: [],
         images,
@@ -1160,13 +1340,65 @@ export function subscribeToFirestoreProducts(
  */
 export async function saveGarmentToFirestore(garment: Garment): Promise<void> {
   try {
+    const updatedAt = Date.now();
+    const toSave: Garment = {
+      ...garment,
+      updatedAt,
+      is_available_for_rent: garment.is_available_for_rent !== false,
+      available_to_sell:
+        garment.is_available_for_rent !== false && (garment.quantity || 0) > 0
+          ? garment.quantity || 0
+          : 0,
+      status: garment.status || (garment.is_available_for_rent === false ? 'paused' : 'active'),
+    };
+
     const docRef = doc(db, 'products', garment.id);
-    await setDoc(docRef, garment, { merge: true });
+    await setDoc(docRef, toSave, { merge: true });
+
+    // Synchronize underlying linked raw doc variations if any
+    if (garment.rawDocIds && Array.isArray(garment.rawDocIds)) {
+      for (const rawId of garment.rawDocIds) {
+        if (rawId && rawId !== garment.id) {
+          try {
+            const rawRef = doc(db, 'products', rawId);
+            await setDoc(
+              rawRef,
+              {
+                is_available_for_rent: toSave.is_available_for_rent,
+                available_to_sell: toSave.available_to_sell,
+                quantity: toSave.quantity,
+                basePrice4Days: toSave.basePrice4Days,
+                dailyExtraRate: toSave.dailyExtraRate,
+                securityDeposit: toSave.securityDeposit,
+                status: toSave.status,
+                updated_at: updatedAt,
+                updatedAt,
+              },
+              { merge: true }
+            );
+          } catch (err) {
+            console.warn(`[Firestore] Could not sync sub-document ${rawId}:`, err);
+          }
+        }
+      }
+    }
+
+    // Update local cache immediately
+    const cached = getCachedGarmentsFromLocalStorage();
+    if (cached && cached.length > 0) {
+      const idx = cached.findIndex((g) => g.id === garment.id);
+      if (idx >= 0) {
+        cached[idx] = toSave;
+      } else {
+        cached.unshift(toSave);
+      }
+      setCachedGarmentsToLocalStorage(cached);
+    }
 
     if (namedDb && defaultDb && namedDb !== defaultDb) {
       try {
         const defaultRef = doc(defaultDb, 'products', garment.id);
-        await setDoc(defaultRef, garment, { merge: true });
+        await setDoc(defaultRef, toSave, { merge: true });
       } catch {}
     }
   } catch (error) {

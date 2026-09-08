@@ -357,11 +357,18 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
             <button
               id="btn-confirm-variation-add-cart"
               type="button"
+              disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
               onClick={handleConfirmAddToCart}
-              className="px-5 py-2.5 rounded-lg text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+              className="px-5 py-2.5 rounded-lg text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Add to Bag</span>
+              <span>
+                {garment.is_available_for_rent === false
+                  ? 'Rental Paused'
+                  : garment.quantity !== undefined && garment.quantity <= 0
+                  ? 'Out of Stock'
+                  : 'Add to Bag'}
+              </span>
             </button>
           </div>
         </div>
