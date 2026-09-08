@@ -38,6 +38,7 @@ import { Garment, GarmentVariation, GarmentSize } from '../../types';
 import { GarmentImage } from '../common/GarmentImage';
 import { getHexForColorName } from '../../services/firestoreProducts';
 import { CachePerformanceModal } from './CachePerformanceModal';
+import { HorizontalScrollStrip } from '../common/HorizontalScrollStrip';
 
 export const AdminInventoryView: React.FC = () => {
   const {
@@ -853,52 +854,56 @@ export const AdminInventoryView: React.FC = () => {
             <Search className="w-3.5 h-3.5 text-[#948E88] absolute left-2.5 top-1/2 -translate-y-1/2" />
           </div>
 
-          {/* Quick Inventory Status Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto no-scrollbar pb-1 sm:pb-0">
-            {[
-              { id: 'all', label: `All (${garments.length})` },
-              { id: 'listed', label: `Listed (${inventoryStats.listedCount})` },
-              { id: 'disabled', label: `Disabled (${inventoryStats.disabledCount})` },
-              { id: 'active', label: `Rental Active (${inventoryStats.activeRentalCount})` },
-              { id: 'paused', label: `Rental Paused (${inventoryStats.pausedRentalCount})` },
-              { id: 'in-stock', label: 'In Stock' },
-              { id: 'low-stock', label: `Low Stock (${inventoryStats.lowStockCount})` },
-              { id: 'out-of-stock', label: `Out of Stock (${inventoryStats.outOfStockCount})` },
-            ].map((tab) => (
+          {/* Quick Inventory Status Filter Pills with Desktop Scroll Arrows & Dragging */}
+          <HorizontalScrollStrip className="w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 min-w-max pb-0.5">
+              {[
+                { id: 'all', label: `All (${garments.length})` },
+                { id: 'listed', label: `Listed (${inventoryStats.listedCount})` },
+                { id: 'disabled', label: `Disabled (${inventoryStats.disabledCount})` },
+                { id: 'active', label: `Rental Active (${inventoryStats.activeRentalCount})` },
+                { id: 'paused', label: `Rental Paused (${inventoryStats.pausedRentalCount})` },
+                { id: 'in-stock', label: 'In Stock' },
+                { id: 'low-stock', label: `Low Stock (${inventoryStats.lowStockCount})` },
+                { id: 'out-of-stock', label: `Out of Stock (${inventoryStats.outOfStockCount})` },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setInventoryStatusFilter(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors border cursor-pointer shrink-0 select-none ${
+                    inventoryStatusFilter === tab.id
+                      ? 'bg-[#141312] text-white border-[#141312]'
+                      : 'bg-[#FAF9F6] text-[#5C5854] border-[#E8E4DF] hover:text-[#141312]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </HorizontalScrollStrip>
+        </div>
+
+        {/* Categories Bar with Desktop Scroll Arrows & Dragging */}
+        <HorizontalScrollStrip className="w-full pt-1 border-t border-[#E8E4DF]">
+          <div className="flex items-center gap-1 min-w-max">
+            <span className="text-[10px] font-medium text-[#948E88] uppercase tracking-wider mr-1 shrink-0">
+              Category:
+            </span>
+            {categories.map((cat) => (
               <button
-                key={tab.id}
-                onClick={() => setInventoryStatusFilter(tab.id as any)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors border cursor-pointer ${
-                  inventoryStatusFilter === tab.id
-                    ? 'bg-[#141312] text-white border-[#141312]'
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-medium whitespace-nowrap transition-colors border cursor-pointer shrink-0 select-none ${
+                  selectedCategory === cat
+                    ? 'bg-[#80232F] text-white border-[#80232F]'
                     : 'bg-[#FAF9F6] text-[#5C5854] border-[#E8E4DF] hover:text-[#141312]'
                 }`}
               >
-                {tab.label}
+                {cat}
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Categories Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1 border-t border-[#E8E4DF]">
-          <span className="text-[10px] font-medium text-[#948E88] uppercase tracking-wider mr-1 shrink-0">
-            Category:
-          </span>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-2 py-0.5 rounded text-[10.5px] font-medium whitespace-nowrap transition-colors border cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-[#80232F] text-white border-[#80232F]'
-                  : 'bg-[#FAF9F6] text-[#5C5854] border-[#E8E4DF] hover:text-[#141312]'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        </HorizontalScrollStrip>
       </div>
 
       {/* Inventory Management Table */}

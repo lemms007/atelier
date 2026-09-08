@@ -12,6 +12,7 @@ import { AdminOrdersPortal } from './components/admin/AdminOrdersPortal';
 import { ProfileView } from './components/profile/ProfileView';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
 import { Admin2FAModal } from './components/admin/Admin2FAModal';
+import { GoogleAuthModal } from './components/auth/GoogleAuthModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -71,6 +72,9 @@ const AppContent: React.FC = () => {
 
       {/* Streamlined 3-Step Checkout Modal */}
       <CheckoutModal />
+
+      {/* Optional Google Registration & Sign In Modal */}
+      <GoogleAuthModal />
 
       {/* Customer Mobile Navigation Bar */}
       <BottomNavigation />

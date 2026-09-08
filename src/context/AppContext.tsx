@@ -16,6 +16,8 @@ import {
   FirestoreCategory,
   FirestoreStore,
   FirestoreProductVariation,
+  UserProfile,
+  UserMeasurements,
 } from '../types';
 import { MOCK_GARMENTS } from '../data/garments';
 import { INITIAL_MOCK_ORDERS } from '../data/initialOrders';
@@ -30,6 +32,14 @@ import {
   subscribeToFirestoreStores,
   fetchProductVariationsFromFirestore,
 } from '../services/firestoreProducts';
+import { auth, signInWithGoogle, signOutCurrentUser } from '../firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import {
+  getUserProfileFromFirestore,
+  saveUserProfileToFirestore,
+  syncUserProfileOnGoogleLogin,
+  subscribeToUserProfile,
+} from '../services/firestoreUsers';
 
 interface AppContextType {
   // Mode Separation (User / Customer vs Admin / Backoffice)
@@ -37,6 +47,16 @@ interface AppContextType {
   setViewMode: (mode: ViewMode) => void;
   switchToAdmin: () => void;
   switchToUser: () => void;
+
+  // Google User Authentication & Reusable Profile
+  currentUser: FirebaseUser | null;
+  userProfile: UserProfile | null;
+  isAuthLoading: boolean;
+  isGoogleLoginModalOpen: boolean;
+  setIsGoogleLoginModalOpen: (open: boolean) => void;
+  loginWithGoogle: () => Promise<void>;
+  logoutUser: () => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
 
   // 2FA Admin Authentication
   isAdminAuthenticated: boolean;
@@ -141,6 +161,114 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
+
+  // Google Authentication & User Profile State
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isGoogleLoginModalOpen, setIsGoogleLoginModalOpen] = useState<boolean>(false);
+
+  // Monitor Google Authentication State changes
+  useEffect(() => {
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          // Load or initialize user profile in Firestore
+          const profile = await syncUserProfileOnGoogleLogin(user);
+          setUserProfile(profile);
+
+          // Listen for profile changes in real-time
+          if (unsubscribeProfile) unsubscribeProfile();
+          unsubscribeProfile = subscribeToUserProfile(user.uid, (updatedProfile) => {
+            if (updatedProfile) {
+              setUserProfile(updatedProfile);
+            }
+          });
+        } catch (err) {
+          console.error('[AppContext] Failed to initialize user profile:', err);
+        }
+      } else {
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = null;
+        }
+        setUserProfile(null);
+      }
+      setIsAuthLoading(false);
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
+  }, []);
+
+  const loginWithGoogle = async () => {
+    try {
+      setIsAuthLoading(true);
+      const user = await signInWithGoogle();
+      const profile = await syncUserProfileOnGoogleLogin(user);
+      setUserProfile(profile);
+      showToast(`Welcome back, ${profile.displayName || user.displayName || 'Renter'}!`);
+      setIsGoogleLoginModalOpen(false);
+    } catch (err: any) {
+      console.error('Google Sign-In failed:', err);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        showToast('Google Sign-In was cancelled.');
+      } else {
+        showToast('Could not complete Google Sign-In. Please retry.');
+      }
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const logoutUser = async () => {
+    try {
+      await signOutCurrentUser();
+      setUserProfile(null);
+      setCurrentUser(null);
+      showToast('Signed out of Atelier.');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
+
+  const updateUserProfile = async (updates: Partial<UserProfile>) => {
+    if (!currentUser && !userProfile) {
+      showToast('Please sign in with Google to save profile details.');
+      return;
+    }
+    const uid = currentUser?.uid || userProfile?.uid;
+    if (!uid) return;
+
+    const currentData = userProfile || {
+      uid,
+      email: currentUser?.email || '',
+      displayName: currentUser?.displayName || 'Atelier Renter',
+      isRegistered: true,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+
+    const merged: UserProfile = {
+      ...currentData,
+      ...updates,
+      uid,
+    };
+
+    setUserProfile(merged);
+    try {
+      await saveUserProfileToFirestore(merged);
+      showToast('Saved your profile & reusable details to database.');
+    } catch (err) {
+      console.error('Failed to update user profile in Firestore:', err);
+      showToast('Saved details locally.');
+    }
+  };
 
   // 2FA Admin Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
@@ -493,6 +621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newOrder: RentalOrder = {
       id: orderId,
+      userId: currentUser?.uid || undefined,
       items: [...cart],
       shipping,
       kyc,
@@ -520,6 +649,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    // If logged in, automatically save reusable details to Firestore user profile
+    if (currentUser?.uid) {
+      updateUserProfile({
+        shippingDetails: shipping,
+        kycDetails: {
+          idType: kyc.idType,
+          frontIdImage: kyc.frontIdImage,
+          backIdImage: kyc.backIdImage,
+          selfieWithIdImage: kyc.selfieWithIdImage,
+          idNumber: kyc.idNumber,
+          isVerified: true,
+          uploadedAt: kyc.uploadedAt,
+        },
+        ordersCount: (userProfile?.ordersCount || 0) + 1,
+      });
+    }
 
     setOrders((prev) => [newOrder, ...prev]);
     clearCart();
@@ -597,6 +743,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setViewMode,
         switchToAdmin,
         switchToUser,
+        currentUser,
+        userProfile,
+        isAuthLoading,
+        isGoogleLoginModalOpen,
+        setIsGoogleLoginModalOpen,
+        loginWithGoogle,
+        logoutUser,
+        updateUserProfile,
         isAdminAuthenticated,
         adminEmail,
         setAdminEmail,

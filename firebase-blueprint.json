@@ -145,9 +145,34 @@
         "rawDocIds": { "type": "array", "description": "Source Firestore document IDs" }
       },
       "required": ["id", "name", "designer", "category", "basePrice4Days", "images"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Registered renter profile with Google Auth, reusable delivery addresses, verified KYC credentials, and sizing measurements",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase Authentication UID" },
+        "email": { "type": "string", "description": "User Google account email" },
+        "displayName": { "type": "string", "description": "Renter full display name" },
+        "photoURL": { "type": "string", "description": "Google profile avatar image URL" },
+        "phoneNumber": { "type": "string", "description": "Philippine contact mobile number" },
+        "isRegistered": { "type": "boolean", "description": "Whether account is registered" },
+        "createdAt": { "type": "string", "description": "Registration timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last Google authentication timestamp" },
+        "shippingDetails": { "type": "object", "description": "Saved reusable delivery and courier address" },
+        "kycDetails": { "type": "object", "description": "Saved reusable government ID and selfie verification" },
+        "measurements": { "type": "object", "description": "Saved silhouette bust, waist, hips, and height sizing" },
+        "paymentPreferences": { "type": "object", "description": "Preferred GCash or Bank Transfer payment details" },
+        "wishlist": { "type": "array", "description": "Saved garment IDs in renter wishlist" }
+      },
+      "required": ["uid", "email", "displayName"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Registered user profiles containing reusable shipping addresses, uploaded KYC IDs, and size measurements"
+    },
     "/products/{productId}": {
       "schema": "RentalProduct",
       "description": "Products collection containing both rental-normalized products and raw scraped catalog products"

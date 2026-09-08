@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Search, ShoppingBag, ShieldCheck, X, Heart } from 'lucide-react';
+import { Search, ShoppingBag, ShieldCheck, X, Heart, User, Sparkles } from 'lucide-react';
 
 export const AppHeader: React.FC = () => {
   const {
@@ -14,6 +14,9 @@ export const AppHeader: React.FC = () => {
     wishlist,
     selectedCategory,
     setSelectedCategory,
+    currentUser,
+    userProfile,
+    setIsGoogleLoginModalOpen,
   } = useApp();
 
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
@@ -32,7 +35,7 @@ export const AppHeader: React.FC = () => {
           onClick={() => {
             setActiveTab('explore');
           }}
-          className="text-left group flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5 focus:outline-none"
+          className="text-left group flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5 focus:outline-none cursor-pointer"
         >
           <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#141312] group-hover:opacity-75 transition-opacity">
             ATELIER
@@ -61,7 +64,7 @@ export const AppHeader: React.FC = () => {
                 setSearchQuery('');
                 setIsSearchOpen(false);
               }}
-              className="absolute right-3 text-[#948E88] hover:text-[#141312] transition-colors"
+              className="absolute right-3 text-[#948E88] hover:text-[#141312] transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -74,7 +77,7 @@ export const AppHeader: React.FC = () => {
             <button
               id="btn-open-search"
               onClick={() => setIsSearchOpen(true)}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#F5F3EF] transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#F5F3EF] transition-colors cursor-pointer"
               title="Search Catalog"
             >
               <Search className="w-4 h-4 stroke-[1.75]" />
@@ -88,7 +91,7 @@ export const AppHeader: React.FC = () => {
               setSelectedCategory('Wishlist');
               setActiveTab('explore');
             }}
-            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors ${
+            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors cursor-pointer ${
               selectedCategory === 'Wishlist'
                 ? 'bg-[#141312] text-white'
                 : 'text-[#141312] hover:bg-[#F5F3EF]'
@@ -103,11 +106,51 @@ export const AppHeader: React.FC = () => {
             )}
           </button>
 
+          {/* Google Account / Profile Button */}
+          {currentUser ? (
+            <button
+              id="btn-header-user-profile"
+              onClick={() => setActiveTab('profile')}
+              className={`h-9 px-2 sm:px-2.5 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                activeTab === 'profile'
+                  ? 'bg-[#141312] text-white border-[#141312]'
+                  : 'bg-[#FFFFFF] border-[#E8E4DF] text-[#141312] hover:bg-[#F5F3EF]'
+              }`}
+              title="Your Account & Reusable Details"
+            >
+              {userProfile?.photoURL || currentUser.photoURL ? (
+                <img
+                  src={userProfile?.photoURL || currentUser.photoURL || ''}
+                  alt="Profile"
+                  className="w-5 h-5 rounded-full object-cover shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-[#141312] text-white text-[9px] flex items-center justify-center font-medium shrink-0">
+                  {(userProfile?.displayName || currentUser.displayName || 'U').charAt(0)}
+                </div>
+              )}
+              <span className="text-xs font-medium max-w-[90px] truncate hidden md:inline">
+                {userProfile?.displayName?.split(' ')[0] || currentUser.displayName?.split(' ')[0] || 'Account'}
+              </span>
+            </button>
+          ) : (
+            <button
+              id="btn-header-google-signin"
+              onClick={() => setIsGoogleLoginModalOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors bg-[#FFFFFF] text-[#141312] border border-[#E8E4DF] hover:border-[#141312] cursor-pointer"
+              title="Sign in with Google (Optional)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#80232F]" />
+              <span className="hidden sm:inline">Sign In</span>
+            </button>
+          )}
+
           {/* Admin Portal Switcher Button */}
           <button
             id="btn-header-admin-desk"
             onClick={switchToAdmin}
-            className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors bg-[#FFFFFF] text-[#5C5854] border border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312]"
+            className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors bg-[#FFFFFF] text-[#5C5854] border border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312] cursor-pointer"
             title="Switch to Admin Verification Console"
           >
             <ShieldCheck className="w-3.5 h-3.5 stroke-[1.75]" />
@@ -123,7 +166,7 @@ export const AppHeader: React.FC = () => {
           <button
             id="btn-header-cart"
             onClick={() => setActiveTab('cart')}
-            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors ${
+            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors cursor-pointer ${
               activeTab === 'cart'
                 ? 'bg-[#141312] text-white'
                 : 'text-[#141312] hover:bg-[#F5F3EF]'
@@ -142,3 +185,4 @@ export const AppHeader: React.FC = () => {
     </header>
   );
 };
+

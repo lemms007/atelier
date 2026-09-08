@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GarmentCategory } from '../../types';
 import { Heart, Store } from 'lucide-react';
 import { getAvailableShops } from '../../utils/formatters';
+import { HorizontalScrollStrip } from '../common/HorizontalScrollStrip';
 
 const DRESS_CATEGORIES: string[] = [
   'All',
@@ -25,6 +26,9 @@ export const CategoryPillFilters: React.FC = () => {
     wishlist,
   } = useApp();
 
+  const activeCategoryRef = useRef<HTMLButtonElement | null>(null);
+  const activeShopRef = useRef<HTMLButtonElement | null>(null);
+
   const availableShops = useMemo(() => getAvailableShops(garments), [garments]);
 
   // Dynamically include authentic dress categories from inventory, ignoring 'Sale'
@@ -42,22 +46,44 @@ export const CategoryPillFilters: React.FC = () => {
     return list;
   }, [garments]);
 
+  // Auto-scroll active item into view on desktop / mobile
+  useEffect(() => {
+    if (activeCategoryRef.current) {
+      activeCategoryRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (activeShopRef.current) {
+      activeShopRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [selectedShop]);
+
   return (
-    <div className="space-y-2 py-1.5 border-b border-[#E8E4DF]/60 pb-2.5">
-      {/* Boutique Houses Filter Strip */}
-      <div className="w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
-        <div className="flex items-center gap-1.5 min-w-max">
-          <span className="text-[10.5px] font-medium uppercase tracking-wider text-[#948E88] flex items-center gap-1 mr-1">
-            <Store className="w-3 h-3 text-[#948E88]" />
+    <div id="catalog-category-filters" className="space-y-2 py-2 border-b border-[#E8E4DF]/60 pb-3">
+      {/* Boutique Houses Filter Strip with Desktop Scroll Arrows & Dragging */}
+      <HorizontalScrollStrip id="filter-strip-boutiques" className="w-full">
+        <div className="flex items-center gap-1.5 min-w-max py-0.5">
+          <span className="text-[10.5px] font-medium uppercase tracking-wider text-[#948E88] flex items-center gap-1 mr-1 shrink-0">
+            <Store className="w-3.5 h-3.5 text-[#948E88]" />
             Boutique:
           </span>
           <button
             type="button"
+            ref={selectedShop === 'All' ? activeShopRef : null}
             id="pill-shop-all"
             onClick={() => setSelectedShop('All')}
-            className={`h-7 px-3 rounded-full text-xs transition-all whitespace-nowrap border cursor-pointer ${
+            className={`h-7.5 px-3.5 rounded-full text-xs transition-all whitespace-nowrap border cursor-pointer select-none shrink-0 ${
               selectedShop === 'All'
-                ? 'bg-[#141312] text-white border-[#141312] font-medium shadow-2xs'
+                ? 'bg-[#141312] text-white border-[#141312] font-semibold shadow-xs'
                 : 'bg-[#FFFFFF] text-[#5C5854] border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312]'
             }`}
           >
@@ -68,12 +94,13 @@ export const CategoryPillFilters: React.FC = () => {
             return (
               <button
                 key={shop}
+                ref={isActive ? activeShopRef : null}
                 type="button"
                 id={`pill-shop-${shop.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                 onClick={() => setSelectedShop(shop)}
-                className={`h-7 px-3 rounded-full text-xs transition-all whitespace-nowrap border cursor-pointer ${
+                className={`h-7.5 px-3.5 rounded-full text-xs transition-all whitespace-nowrap border cursor-pointer select-none shrink-0 ${
                   isActive
-                    ? 'bg-[#141312] text-white border-[#141312] font-medium shadow-2xs'
+                    ? 'bg-[#141312] text-white border-[#141312] font-semibold shadow-xs'
                     : 'bg-[#FFFFFF] text-[#5C5854] border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312]'
                 }`}
               >
@@ -82,11 +109,11 @@ export const CategoryPillFilters: React.FC = () => {
             );
           })}
         </div>
-      </div>
+      </HorizontalScrollStrip>
 
-      {/* Dress Style & Category Pills */}
-      <div className="w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
-        <div className="flex items-center gap-1.5 min-w-max">
+      {/* Dress Style & Category Pills with Desktop Scroll Arrows & Dragging */}
+      <HorizontalScrollStrip id="filter-strip-categories" className="w-full">
+        <div className="flex items-center gap-1.5 min-w-max py-0.5">
           {categories.map((category) => {
             const isActive = selectedCategory === category;
             const isWishlist = category === 'Wishlist';
@@ -94,17 +121,18 @@ export const CategoryPillFilters: React.FC = () => {
             return (
               <button
                 key={category}
+                ref={isActive ? activeCategoryRef : null}
                 id={`pill-category-${category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                 onClick={() => setSelectedCategory(category as GarmentCategory)}
-                className={`h-7.5 px-3 rounded-full text-xs tracking-tight transition-all whitespace-nowrap flex items-center justify-center gap-1.5 border cursor-pointer ${
+                className={`h-8 px-3.5 rounded-full text-xs tracking-tight transition-all whitespace-nowrap flex items-center justify-center gap-1.5 border cursor-pointer select-none shrink-0 ${
                   isActive
-                    ? 'bg-[#80232F] text-white border-[#80232F] font-medium shadow-2xs'
-                    : 'bg-[#FAF9F6] text-[#5C5854] border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312]'
+                    ? 'bg-[#80232F] text-white border-[#80232F] font-semibold shadow-xs'
+                    : 'bg-[#FAF9F6] text-[#5C5854] border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312] hover:bg-white'
                 }`}
               >
                 {isWishlist && (
                   <Heart
-                    className={`w-3 h-3 ${
+                    className={`w-3.5 h-3.5 ${
                       isActive
                         ? 'fill-white text-white'
                         : wishlist.length > 0
@@ -120,7 +148,7 @@ export const CategoryPillFilters: React.FC = () => {
             );
           })}
         </div>
-      </div>
+      </HorizontalScrollStrip>
     </div>
   );
 };

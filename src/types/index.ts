@@ -204,6 +204,7 @@ export interface KYCData {
   selfieWithIdImage: string;
   idNumber?: string;
   uploadedAt: string;
+  isVerified?: boolean;
 }
 
 export type PaymentMethod = 'gcash' | 'bank_transfer';
@@ -263,8 +264,42 @@ export interface StatusHistoryItem {
   note?: string;
 }
 
+export interface UserMeasurements {
+  primarySize: GarmentSize;
+  bust: string;
+  waist: string;
+  hips: string;
+  height: string;
+}
+
+export interface UserPaymentPreferences {
+  method?: PaymentMethod;
+  bankName?: BankName;
+  accountName?: string;
+  accountNumber?: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  phoneNumber?: string;
+  isRegistered: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+  membershipTier?: 'Standard' | 'VIP Member' | 'Atelier Connoisseur';
+  shippingDetails?: Partial<ShippingDetails>;
+  kycDetails?: Partial<KYCData>;
+  measurements?: UserMeasurements;
+  paymentPreferences?: UserPaymentPreferences;
+  wishlist?: string[];
+  ordersCount?: number;
+}
+
 export interface RentalOrder {
   id: string; // e.g. ORD-2026-8924
+  userId?: string;
   items: CartItem[];
   shipping: ShippingDetails;
   kyc: KYCData;

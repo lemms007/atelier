@@ -8,10 +8,46 @@ import {
   getDocFromServer,
   Firestore,
 } from 'firebase/firestore';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  Auth,
+} from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase App instance
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+// Initialize Firebase Auth
+export const auth: Auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+});
+
+/**
+ * Trigger Google Sign In via Firebase Popup
+ */
+export async function signInWithGoogle(): Promise<FirebaseUser> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error: any) {
+    console.error('[FirebaseAuth] Google sign-in failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Sign out current user
+ */
+export async function signOutCurrentUser(): Promise<void> {
+  await signOut(auth);
+}
 
 /**
  * Creates or retrieves a Firestore instance configured with client-side IndexedDB persistent caching.
