@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AppHeader } from './components/layout/AppHeader';
 import { AdminHeader } from './components/layout/AdminHeader';
@@ -13,6 +13,7 @@ import { ProfileView } from './components/profile/ProfileView';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
 import { Admin2FAModal } from './components/admin/Admin2FAModal';
 import { GoogleAuthModal } from './components/auth/GoogleAuthModal';
+import { Garment, CustomerTab, ViewMode } from './types';
 
 const AppContent: React.FC = () => {
   const {
@@ -20,14 +21,74 @@ const AppContent: React.FC = () => {
     activeTab,
     selectedGarment,
     setSelectedGarment,
+    restoreCollectionScroll,
   } = useApp();
 
-  // Scroll to the top whenever selectedGarment or active customer tab changes
+  const prevGarmentRef = useRef<Garment | null>(null);
+  const prevTabRef = useRef<CustomerTab | 'admin'>(activeTab);
+  const prevViewModeRef = useRef<ViewMode>(viewMode);
+
+  // Prevent aggressive browser restoration on page loads
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [selectedGarment, activeTab, viewMode]);
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Handle navigation scroll states:
+  // 1. Tab switches or Admin view toggles -> Scroll to top
+  // 2. Opening Product Detail Page -> Scroll to top of PDP
+  // 3. Returning from PDP (Back to Collection) -> Restore position where user left off / selected product
+  useEffect(() => {
+    const prevGarment = prevGarmentRef.current;
+    const prevTab = prevTabRef.current;
+    const prevViewMode = prevViewModeRef.current;
+
+    prevGarmentRef.current = selectedGarment;
+    prevTabRef.current = activeTab;
+    prevViewModeRef.current = viewMode;
+
+    // Mode change (Customer vs Admin) or customer tab switch
+    if (prevViewMode !== viewMode || prevTab !== activeTab) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      return;
+    }
+
+    // Opening PDP from collection or another screen
+    if (!prevGarment && selectedGarment) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      return;
+    }
+
+    // Returning from PDP back to collection / previous view (Back to Collection clicked)
+    if (prevGarment && !selectedGarment) {
+      // Immediate attempt
+      restoreCollectionScroll();
+
+      // Ensure restoration after DOM commit and layout pass
+      const animFrame = requestAnimationFrame(() => {
+        restoreCollectionScroll();
+      });
+
+      const timer1 = setTimeout(() => {
+        restoreCollectionScroll();
+      }, 50);
+
+      const timer2 = setTimeout(() => {
+        restoreCollectionScroll();
+      }, 150);
+
+      return () => {
+        cancelAnimationFrame(animFrame);
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [selectedGarment, activeTab, viewMode, restoreCollectionScroll]);
 
   // Distinct Admin / Backoffice Portal View
   if (viewMode === 'admin') {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   Garment,
   GarmentCategory,
@@ -84,6 +84,7 @@ interface AppContextType {
   setAdminTab: (tab: AdminTab) => void;
   selectedGarment: Garment | null;
   setSelectedGarment: (garment: Garment | null, selection?: Partial<GarmentSelectionState>) => void;
+  restoreCollectionScroll: () => boolean;
   garmentSelections: Record<string, GarmentSelectionState>;
   setGarmentSelection: (garmentId: string, selection: Partial<GarmentSelectionState>) => void;
   activeOrderId: string | null;
@@ -168,6 +169,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedGarment, setSelectedGarmentState] = useState<Garment | null>(null);
   const [garmentSelections, setGarmentSelections] = useState<Record<string, GarmentSelectionState>>({});
 
+  // Preserve collection scroll position and active garment ID for seamless back navigation
+  const lastScrollYRef = useRef<number>(0);
+  const lastGarmentIdRef = useRef<string | null>(null);
+
   const setGarmentSelection = (garmentId: string, selection: Partial<GarmentSelectionState>) => {
     setGarmentSelections((prev) => {
       const existing = prev[garmentId] || { variationIndex: 0 };
@@ -185,11 +190,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     garment: Garment | null,
     selection?: Partial<GarmentSelectionState>
   ) => {
-    if (garment && selection) {
-      setGarmentSelection(garment.id, selection);
+    if (garment) {
+      // Capture the current scroll position and target garment before entering PDP
+      lastScrollYRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+      lastGarmentIdRef.current = garment.id;
+      if (selection) {
+        setGarmentSelection(garment.id, selection);
+      }
     }
     setSelectedGarmentState(garment);
   };
+
+  const restoreCollectionScroll = useCallback(() => {
+    const targetId = lastGarmentIdRef.current;
+    const targetEl = targetId ? document.getElementById(`garment-card-${targetId}`) : null;
+
+    // Restore exact scroll position if saved
+    if (lastScrollYRef.current > 0) {
+      window.scrollTo({ top: lastScrollYRef.current, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = lastScrollYRef.current;
+      document.body.scrollTop = lastScrollYRef.current;
+    }
+
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      // Check if item is comfortably visible in the viewport
+      const isVisible = rect.top >= 70 && rect.bottom <= viewportHeight - 70;
+
+      if (!isVisible) {
+        targetEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+      }
+
+      // Add a subtle brief focus ring so renter immediately recognizes their selected product
+      targetEl.classList.add('ring-2', 'ring-[#80232F]/50', 'ring-offset-2');
+      setTimeout(() => {
+        targetEl.classList.remove('ring-2', 'ring-[#80232F]/50', 'ring-offset-2');
+      }, 1400);
+
+      return true;
+    } else if (lastScrollYRef.current > 0) {
+      return true;
+    }
+    return false;
+  }, []);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
@@ -800,6 +844,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAdminTab,
         selectedGarment,
         setSelectedGarment,
+        restoreCollectionScroll,
         garmentSelections,
         setGarmentSelection,
         activeOrderId,
