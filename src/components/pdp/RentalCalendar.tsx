@@ -20,6 +20,7 @@ interface RentalCalendarProps {
   garment: Garment;
   startDate: string;
   endDate: string;
+  configuredDurations?: number[];
   onChangeDates: (start: string, end: string, duration: number) => void;
 }
 
@@ -27,8 +28,13 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
   garment,
   startDate,
   endDate,
+  configuredDurations,
   onChangeDates,
 }) => {
+  const durationList = configuredDurations && configuredDurations.length > 0
+    ? configuredDurations
+    : [4, 8, 12, 14];
+
   // Calendar month navigation state
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState<Date>(() => {
@@ -41,14 +47,12 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
 
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
-  // Derive duration (fixed to 4, 8, 12, or 14 days)
+  // Derive duration (e.g. 4, 8, 12, or 14 days)
   const computedDuration =
     startDate && endDate ? calculateDaysBetween(startDate, endDate) : 4;
-  const currentDuration = FIXED_RENTAL_DURATIONS.includes(
-    computedDuration as (typeof FIXED_RENTAL_DURATIONS)[number]
-  )
+  const currentDuration = durationList.includes(computedDuration)
     ? computedDuration
-    : 4;
+    : (durationList[0] || 4);
 
   const nextMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -145,7 +149,7 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
           Rental Duration:
         </label>
         <div className="grid grid-cols-4 gap-2">
-          {FIXED_RENTAL_DURATIONS.map((daysCount) => {
+          {durationList.map((daysCount) => {
             const isSelected = currentDuration === daysCount;
             return (
               <button

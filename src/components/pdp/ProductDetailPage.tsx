@@ -5,6 +5,7 @@ import {
   formatPHP,
   addDaysToDate,
   calculateRentalPrice,
+  formatDisplayDateShort,
   getGarmentShop,
 } from '../../utils/formatters';
 import { RentalCalendar } from './RentalCalendar';
@@ -21,6 +22,7 @@ import {
   Zap,
   Check,
   CheckCircle2,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { preloadGarmentVariationImages } from '../../utils/imageCache';
@@ -44,7 +46,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     toggleWishlist,
     showToast,
     setIsCheckoutOpen,
+    configuredDurations,
   } = useApp();
+
+  const durationOptions = configuredDurations && configuredDurations.length > 0
+    ? configuredDurations
+    : [4, 8, 12, 14];
 
   const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
 
@@ -80,6 +87,52 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       ) || garment.variations![0]
     : null;
 
+  // Color options list (patterned after Add to Bag dialog)
+  const colorOptions = useMemo(() => {
+    if (hasVariations && garment.variations && garment.variations.length > 0) {
+      return garment.variations.map((v, idx) => ({
+        index: idx,
+        name: v.name,
+        colorName: v.colorName || v.name,
+        hex: v.hex,
+        image: (v.images && v.images[0]) || garment.images[0],
+        sizes: v.sizes,
+        price: v.price,
+      }));
+    }
+    if (garment.colors && garment.colors.length > 0) {
+      return garment.colors.map((c, idx) => ({
+        index: idx,
+        name: c.name,
+        colorName: c.name,
+        hex: c.hex,
+        image: c.image || garment.images[0],
+        sizes: garment.sizes,
+        price: undefined,
+      }));
+    }
+    return [
+      {
+        index: 0,
+        name: 'Original',
+        colorName: 'Original',
+        hex: '#141312',
+        image: garment.images[0],
+        sizes: garment.sizes,
+        price: undefined,
+      },
+    ];
+  }, [hasVariations, garment.variations, garment.colors, garment.images, garment.sizes]);
+
+  const handleSelectColorOption = (opt: (typeof colorOptions)[0]) => {
+    setSelectedColor(opt.name);
+    if (opt.sizes && opt.sizes.length > 0 && !opt.sizes.includes(selectedSize)) {
+      setSelectedSize(opt.sizes[0]);
+    }
+    setActiveImageIndex(0);
+    setFailedIndices([]);
+  };
+
   // Active sizes (from subcollection, variation or parent)
   const availableSizes = subVariations.length > 0
     ? subVariations.map((v) => v.option_name)
@@ -101,6 +154,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [failedIndices, setFailedIndices] = useState<number[]>([]);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
+  const [showCalendarGrid, setShowCalendarGrid] = useState<boolean>(false);
 
   // Ensure PDP opens immediately at the very top of the page
   useLayoutEffect(() => {
@@ -182,6 +236,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     setDurationDays(duration);
   };
 
+  const handleSelectDuration = (days: number) => {
+    setDurationDays(days);
+    setEndDate(addDaysToDate(startDate, days - 1));
+  };
+
+  const handleStartDateChange = (newStart: string) => {
+    if (!newStart) return;
+    setStartDate(newStart);
+    setEndDate(addDaysToDate(newStart, durationDays - 1));
+  };
+
   // Price calculations: prioritize live subcollection or variation price from database
   const activeSubVar = subVariations.find((v) => v.option_name === selectedSize);
   const effectiveBasePrice =
@@ -195,7 +260,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     garment.dailyExtraRate,
     durationDays
   );
-  const securityDeposit = Math.max(0, Math.round(effectiveBasePrice * 0.5));
+  const securityDeposit = garment.securityDeposit ?? Math.max(0, Math.round(effectiveBasePrice * 0.5));
 
   const isWishlisted = wishlist.includes(garment.id);
 
@@ -432,203 +497,312 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             </div>
           </div>
 
-          {/* Column 2: Remaining Items (Configured Actions & Calendar) */}
+          {/* Column 2: Styled directly after VariationSelectModal ("Add to Bag" dialog) */}
           <div className="lg:col-span-5 space-y-4">
-            {/* 3. Variant Selectors (Size & Color) */}
-            <div className="space-y-4 bg-[#FFFFFF] p-4 sm:p-5 rounded-xl border border-[#E8E4DF]">
-              {/* Size Selector */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-[#141312]">
-                    Select Size: <span className="text-[#80232F]">{selectedSize}</span>
-                  </label>
-                  {(garment.sku || subVariations[0]?.sku) && (
-                    <span className="text-[10px] text-[#948E88] font-mono">
-                      SKU: {garment.sku || subVariations[0]?.sku}
-                    </span>
-                  )}
+            {/* Main Rental Configuration & Booking Card */}
+            <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] shadow-xs overflow-hidden">
+              {/* Header: patterned after Add to Bag dialog */}
+              <div className="p-4 sm:p-5 border-b border-[#E8E4DF] bg-[#FAF9F6]/60">
+                <span className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[#80232F] block">
+                  {productSource}
+                </span>
+                <div className="flex items-center justify-between mt-0.5">
+                  <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
+                    Select Rental Options
+                  </h3>
+                  <span className="text-[10px] text-[#5C5854] font-medium bg-white px-2 py-0.5 rounded border border-[#E8E4DF]">
+                    Size {selectedSize} · {selectedColor} · {durationDays}D
+                  </span>
                 </div>
+              </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {availableSizes.map((size) => {
-                    const isSelected = selectedSize === size;
-                    const matchedSubVar = subVariations.find(
-                      (v) => v.option_name.toLowerCase() === size.toLowerCase()
-                    );
-                    const isAvailable = matchedSubVar ? matchedSubVar.available_to_sell > 0 : true;
-
-                    return (
-                      <button
-                        key={size}
-                        id={`btn-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
-                        type="button"
-                        disabled={!isAvailable}
-                        onClick={() => setSelectedSize(size)}
-                        className={`h-10 px-3.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border cursor-pointer ${
-                          !isAvailable
-                            ? 'opacity-30 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'
-                            : isSelected
-                            ? 'bg-[#141312] text-white border-[#141312]'
-                            : 'bg-[#FFFFFF] text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
-                        }`}
-                      >
-                        <span>{size}</span>
-                        {matchedSubVar && (
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded font-normal ${
+              {/* Step-by-Step Configuration Body */}
+              <div className="p-4 sm:p-5 space-y-4">
+                {/* 1. Select Colorway */}
+                {colorOptions.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                        1. Select Colorway: <span className="font-serif text-[#80232F]">{selectedColor}</span>
+                      </label>
+                      {colorOptions.length > 1 && (
+                        <span className="text-[10px] text-[#948E88]">
+                          {colorOptions.length} Colorways
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {colorOptions.map((opt) => {
+                        const isSelected = selectedColor.toLowerCase() === opt.name.toLowerCase();
+                        return (
+                          <button
+                            key={opt.name}
+                            type="button"
+                            id={`btn-color-${opt.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                            onClick={() => handleSelectColorOption(opt)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-white/20 text-white'
-                                : 'bg-[#FAF9F6] text-[#5C5854] border border-[#E8E4DF]'
+                                ? 'border-[#141312] bg-[#FAF9F6] ring-1 ring-[#141312]'
+                                : 'border-[#E8E4DF] hover:border-[#141312]/40 bg-white'
                             }`}
                           >
-                            {matchedSubVar.available_to_sell} left
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                            {opt.image ? (
+                              <div className="w-7 h-9 rounded overflow-hidden shrink-0 bg-[#E8E4DF]">
+                                <img
+                                  src={opt.image}
+                                  alt={opt.name}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                            ) : (
+                              <span
+                                className="w-4 h-4 rounded-full border shrink-0"
+                                style={{ backgroundColor: opt.hex || '#ccc' }}
+                              />
+                            )}
+                            <span className="text-[11px] font-medium text-[#141312] truncate flex-1">
+                              {opt.name}
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-[#141312] shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Select Size */}
+                <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                      2. Select Size: <span className="text-[#80232F]">{selectedSize}</span>
+                    </label>
+                    {(garment.sku || subVariations[0]?.sku) && (
+                      <span className="text-[10px] text-[#948E88] font-mono">
+                        SKU: {garment.sku || subVariations[0]?.sku}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {availableSizes.map((size) => {
+                      const isSelected = selectedSize === size;
+                      const matchedSubVar = subVariations.find(
+                        (v) => v.option_name.toLowerCase() === size.toLowerCase()
+                      );
+                      const isAvailable = matchedSubVar ? matchedSubVar.available_to_sell > 0 : true;
+
+                      return (
+                        <button
+                          key={size}
+                          id={`btn-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                          type="button"
+                          disabled={!isAvailable}
+                          onClick={() => setSelectedSize(size)}
+                          className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 cursor-pointer ${
+                            !isAvailable
+                              ? 'opacity-30 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'
+                              : isSelected
+                              ? 'bg-[#141312] text-white border-[#141312]'
+                              : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
+                          }`}
+                        >
+                          <span>{size}</span>
+                          {matchedSubVar && (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-normal ${
+                                isSelected
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-[#FAF9F6] text-[#5C5854] border border-[#E8E4DF]'
+                              }`}
+                            >
+                              {matchedSubVar.available_to_sell} left
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-[11px] text-[#5C5854] mt-1.5">
+                    Model is {garment.modelMeasurements.height} wearing size{' '}
+                    <strong className="text-[#141312]">{garment.modelMeasurements.wearingSize}</strong>.
+                  </p>
                 </div>
 
-                <p className="text-[11px] text-[#5C5854] mt-2">
-                  Model is {garment.modelMeasurements.height} wearing size{' '}
-                  <strong className="text-[#141312]">{garment.modelMeasurements.wearingSize}</strong>.
-                </p>
-              </div>
-
-              {/* Color & Style Variations Selector */}
-              <div className="pt-3 border-t border-[#E8E4DF]">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-[#141312]">
-                    Color Variation: <span className="font-serif font-bold text-[#80232F]">{selectedColor}</span>
-                  </label>
-                  {garment.colors.length > 1 && (
-                    <span className="text-[10px] bg-[#F5F3EF] text-[#5C5854] px-2 py-0.5 rounded border border-[#E8E4DF] font-medium">
-                      {garment.colors.length} Colorways
+                {/* 3. Rental Duration (Configurable rates: 4, 8, 12, 14 days) */}
+                <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                      3. Rental Duration: <span className="text-[#80232F]">{durationDays} Days</span>
+                    </label>
+                    <span className="text-[10px] text-[#948E88]">
+                      +{formatPHP(garment.dailyExtraRate)}/extra day
                     </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {durationOptions.map((days) => {
+                      const isSelected = durationDays === days;
+                      const priceForDays = calculateRentalPrice(
+                        effectiveBasePrice,
+                        garment.dailyExtraRate,
+                        days
+                      );
+                      return (
+                        <button
+                          key={days}
+                          type="button"
+                          id={`btn-pdp-duration-${days}d`}
+                          onClick={() => handleSelectDuration(days)}
+                          className={`p-2 rounded-lg border text-center transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#141312] text-white border-[#141312] shadow-xs'
+                              : 'bg-white text-[#141312] border-[#E8E4DF] hover:border-[#141312]'
+                          }`}
+                        >
+                          <span className="font-semibold text-xs">{days} Days</span>
+                          <span
+                            className={`text-[10px] ${
+                              isSelected ? 'text-white/80' : 'text-[#5C5854]'
+                            }`}
+                          >
+                            {formatPHP(priceForDays)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Rental Dates */}
+                <div className="space-y-2 pt-2 border-t border-[#E8E4DF]/60">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-xs text-[#141312] block tracking-wide">
+                      4. Rental Dates
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCalendarGrid(!showCalendarGrid)}
+                      className="text-[11px] font-medium text-[#80232F] hover:text-[#50131B] flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <CalendarIcon className="w-3.5 h-3.5" />
+                      <span>{showCalendarGrid ? 'Hide Calendar' : 'View Calendar Grid'}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 bg-[#FAF9F6] p-2.5 rounded-xl border border-[#E8E4DF]">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-[#948E88] block font-medium">
+                        Delivery / Start
+                      </span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        min={defaultStartDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        className="w-full bg-white border border-[#E8E4DF] rounded px-2 py-1 text-xs text-[#141312] mt-0.5 font-medium focus:outline-none focus:border-[#141312]"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-[#948E88] block font-medium">
+                        Return by ({durationDays} Days)
+                      </span>
+                      <div className="w-full bg-[#EFECE6] border border-[#E8E4DF] rounded px-2 py-1 text-xs text-[#141312] mt-0.5 font-medium flex items-center gap-1">
+                        <CalendarIcon className="w-3 h-3 text-[#5C5854] shrink-0" />
+                        <span className="truncate">{formatDisplayDateShort(endDate)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optional expanded monthly calendar grid */}
+                  {showCalendarGrid && (
+                    <div className="pt-2 animate-fadeIn">
+                      <RentalCalendar
+                        garment={garment}
+                        startDate={startDate}
+                        endDate={endDate}
+                        configuredDurations={durationOptions}
+                        onChangeDates={handleDateChange}
+                      />
+                    </div>
                   )}
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {garment.colors.map((color) => {
-                    const isSelected = selectedColor.toLowerCase() === color.name.toLowerCase();
-                    const matchedVar = garment.variations?.find(
-                      (v) => v.name.toLowerCase() === color.name.toLowerCase()
-                    );
-                    const photoThumbnail = color.image || (matchedVar && matchedVar.images?.[0]);
-
-                    return (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setSelectedColor(color.name)}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-[#141312] bg-[#FAF9F6] text-[#141312] ring-1 ring-[#141312] shadow-xs'
-                            : 'border-[#E8E4DF] bg-white text-[#5C5854] hover:border-[#141312] hover:text-[#141312]'
-                        }`}
-                      >
-                        {photoThumbnail ? (
-                          <div className="w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0 bg-[#E8E4DF]">
-                            <img
-                              src={photoThumbnail}
-                              alt={color.name}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                        ) : (
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0"
-                            style={{ backgroundColor: color.hex }}
-                          />
-                        )}
-                        <span className="font-serif font-semibold">{color.name}</span>
-                        {isSelected && <Check className="w-3 h-3 text-[#141312] ml-0.5" />}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
-            </div>
 
-            {/* 4. Interactive 4-14 Day Rental Calendar */}
-            <RentalCalendar
-              garment={garment}
-              startDate={startDate}
-              endDate={endDate}
-              onChangeDates={handleDateChange}
-            />
-
-            {/* 5. Inline Booking & Add to Cart Card */}
-            <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] p-4 sm:p-5 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-[#948E88] block">
-                    Total Rental Quote ({durationDays} Days)
-                  </span>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <span className="font-serif text-2xl font-bold text-[#141312]">
-                      {formatPHP(rentalPrice)}
+              {/* Footer: Price & Add to Bag / Rent Now CTA (Patterned after Add to Bag Dialog footer) */}
+              <div className="p-4 sm:p-5 bg-[#FAF9F6] border-t border-[#E8E4DF] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#948E88] block font-semibold">
+                      Total to Pay
                     </span>
-                    <span className="text-xs text-[#5C5854]">
-                      +{formatPHP(securityDeposit)} refundable deposit
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="font-serif text-2xl font-bold text-[#141312]">
+                        {formatPHP(rentalPrice)}
+                      </span>
+                      <span className="text-xs text-[#5C5854]">
+                        (+{formatPHP(securityDeposit)} dep)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    {garment.is_available_for_rent === false ? (
+                      <span className="text-[10px] bg-[#FEF3C7] text-[#78350F] border border-[#FDE68A] px-2 py-0.5 rounded font-medium">
+                        Rental Paused
+                      </span>
+                    ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
+                      <span className="text-[10px] bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 py-0.5 rounded font-medium">
+                        Out of Stock
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">
+                        Vault Ready
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[#948E88] block mt-1">
+                      Size {selectedSize} · {selectedColor}
                     </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  {garment.is_available_for_rent === false ? (
-                    <span className="text-[10px] bg-[#FEF3C7] text-[#78350F] border border-[#FDE68A] px-2 py-0.5 rounded font-medium">
-                      Rental Paused
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    id="btn-inline-add-to-cart"
+                    type="button"
+                    disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
+                    onClick={handleAddToCart}
+                    className="h-11 px-4 rounded-lg text-xs font-semibold border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ShoppingBag className="w-4 h-4 stroke-[1.75]" />
+                    <span>
+                      {garment.is_available_for_rent === false
+                        ? 'Rental Paused'
+                        : garment.quantity !== undefined && garment.quantity <= 0
+                        ? 'Out of Stock'
+                        : 'Add to Bag'}
                     </span>
-                  ) : garment.quantity !== undefined && garment.quantity <= 0 ? (
-                    <span className="text-[10px] bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2 py-0.5 rounded font-medium">
-                      Out of Stock
+                  </button>
+
+                  <button
+                    id="btn-inline-rent-now"
+                    type="button"
+                    disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
+                    onClick={handleRentNow}
+                    className="h-11 px-4 rounded-lg text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>
+                      {garment.is_available_for_rent === false
+                        ? 'Unavailable'
+                        : garment.quantity !== undefined && garment.quantity <= 0
+                        ? 'Out of Stock'
+                        : 'Instant Reserve'}
                     </span>
-                  ) : (
-                    <span className="text-[10px] bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">
-                      Vault Ready
-                    </span>
-                  )}
-                  <span className="text-[10px] text-[#948E88] block mt-1">
-                    Size {selectedSize} · {selectedColor}
-                  </span>
+                  </button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                <button
-                  id="btn-inline-add-to-cart"
-                  type="button"
-                  disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
-                  onClick={handleAddToCart}
-                  className="h-11 px-4 rounded-md text-xs font-semibold border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ShoppingBag className="w-4 h-4 stroke-[1.75]" />
-                  <span>
-                    {garment.is_available_for_rent === false
-                      ? 'Rental Paused'
-                      : garment.quantity !== undefined && garment.quantity <= 0
-                      ? 'Out of Stock'
-                      : 'Add Dress to Bag'}
-                  </span>
-                </button>
-
-                <button
-                  id="btn-inline-rent-now"
-                  type="button"
-                  disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
-                  onClick={handleRentNow}
-                  className="h-11 px-4 rounded-md text-xs font-semibold text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Zap className="w-4 h-4 fill-white" />
-                  <span>
-                    {garment.is_available_for_rent === false
-                      ? 'Unavailable'
-                      : garment.quantity !== undefined && garment.quantity <= 0
-                      ? 'Out of Stock'
-                      : 'Instant Reserve'}
-                  </span>
-                </button>
               </div>
             </div>
 
