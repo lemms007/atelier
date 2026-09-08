@@ -1,6 +1,7 @@
 /**
  * Currency, date, and validation helpers for Atelier Design System
  */
+import { Garment, GarmentSize } from '../types';
 
 export const formatPHP = (amount: number): string => {
   return new Intl.NumberFormat('en-PH', {
@@ -132,4 +133,55 @@ export const getAvailableShops = (
     if (s) shopSet.add(normalizeShopName(s));
   });
   return Array.from(shopSet);
+};
+
+export interface GarmentColorOption {
+  index: number;
+  name: string;
+  colorName: string;
+  hex?: string;
+  image?: string;
+  images?: string[];
+  sizes?: GarmentSize[];
+  price?: number;
+}
+
+export const getGarmentColorOptions = (garment: Garment): GarmentColorOption[] => {
+  const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
+  if (hasVariations) {
+    return garment.variations!.map((v, idx) => ({
+      index: idx,
+      name: v.name,
+      colorName: v.colorName || v.name,
+      hex: v.hex,
+      image: (v.images && v.images[0]) || garment.images[0],
+      images: v.images && v.images.length > 0 ? v.images : garment.images,
+      sizes: v.sizes && v.sizes.length > 0 ? v.sizes : garment.sizes,
+      price: v.price,
+    }));
+  }
+  if (Array.isArray(garment.colors) && garment.colors.length > 0) {
+    return garment.colors.map((c, idx) => ({
+      index: idx,
+      name: c.name,
+      colorName: c.name,
+      hex: c.hex,
+      image: c.image || garment.images[0],
+      images: c.image ? [c.image, ...garment.images.filter((img) => img !== c.image)] : garment.images,
+      sizes: garment.sizes,
+      price: undefined,
+    }));
+  }
+  return [
+    {
+      index: 0,
+      name: 'Original',
+      colorName: 'Original',
+      hex: '#141312',
+      image: garment.images[0] || '',
+      images: garment.images,
+      sizes: garment.sizes,
+      price: undefined,
+    },
+  ];
 };

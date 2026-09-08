@@ -7,6 +7,8 @@ import {
   calculateRentalPrice,
   formatDisplayDateShort,
   getGarmentShop,
+  getGarmentColorOptions,
+  GarmentColorOption,
 } from '../../utils/formatters';
 import { RentalCalendar } from './RentalCalendar';
 import { GarmentSpecifications } from './GarmentSpecifications';
@@ -34,11 +36,17 @@ import {
 interface ProductDetailPageProps {
   garment: Garment;
   onBack: () => void;
+  initialVariationIndex?: number;
+  initialColor?: string;
+  initialSize?: GarmentSize;
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   garment,
   onBack,
+  initialVariationIndex,
+  initialColor,
+  initialSize,
 }) => {
   const {
     addToCart,
@@ -47,6 +55,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     showToast,
     setIsCheckoutOpen,
     configuredDurations,
+    garmentSelections,
+    setGarmentSelection,
   } = useApp();
 
   const durationOptions = configuredDurations && configuredDurations.length > 0
@@ -67,18 +77,52 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     };
   }, [garment]);
 
-  // Garment variations resolution
-  const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
-  
-  // Selected variant state
-  const [selectedColor, setSelectedColor] = useState<string>(() => {
-    if (hasVariations && garment.variations![0]?.name) {
-      return garment.variations![0].name;
-    }
-    return garment.colors[0]?.name || 'Original';
-  });
+  // Color options list derived uniformly
+  const colorOptions = useMemo(() => getGarmentColorOptions(garment), [garment]);
 
-  // Active variation object
+  // Check saved variation state for this garment (e.g. from GarmentCard in catalog)
+  const savedSelection = garmentSelections[garment.id];
+
+  const initialIndex = useMemo(() => {
+    if (initialColor) {
+      const idx = colorOptions.findIndex(
+        (opt) => opt.name.toLowerCase() === initialColor.toLowerCase()
+      );
+      if (idx !== -1) return idx;
+    }
+    if (savedSelection?.colorName) {
+      const idx = colorOptions.findIndex(
+        (opt) => opt.name.toLowerCase() === savedSelection.colorName!.toLowerCase()
+      );
+      if (idx !== -1) return idx;
+    }
+    if (savedSelection?.variationIndex !== undefined && colorOptions[savedSelection.variationIndex]) {
+      return savedSelection.variationIndex;
+    }
+    if (initialVariationIndex !== undefined && colorOptions[initialVariationIndex]) {
+      return initialVariationIndex;
+    }
+    return 0;
+  }, [colorOptions, initialColor, initialVariationIndex, savedSelection]);
+
+  // Selected variant state
+  const [selectedColor, setSelectedColor] = useState<string>(
+    colorOptions[initialIndex]?.name || 'Original'
+  );
+
+  useEffect(() => {
+    if (savedSelection?.colorName) {
+      setSelectedColor(savedSelection.colorName);
+    } else if (colorOptions[initialIndex]?.name) {
+      setSelectedColor(colorOptions[initialIndex].name);
+    }
+  }, [garment.id, savedSelection?.colorName]);
+
+  const activeColorOption = colorOptions.find(
+    (opt) => opt.name.toLowerCase() === selectedColor.toLowerCase()
+  ) || colorOptions[0];
+
+  const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
   const activeVariation = hasVariations
     ? garment.variations!.find(
         (v) =>
@@ -87,65 +131,52 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       ) || garment.variations![0]
     : null;
 
-  // Color options list (patterned after Add to Bag dialog)
-  const colorOptions = useMemo(() => {
-    if (hasVariations && garment.variations && garment.variations.length > 0) {
-      return garment.variations.map((v, idx) => ({
-        index: idx,
-        name: v.name,
-        colorName: v.colorName || v.name,
-        hex: v.hex,
-        image: (v.images && v.images[0]) || garment.images[0],
-        sizes: v.sizes,
-        price: v.price,
-      }));
-    }
-    if (garment.colors && garment.colors.length > 0) {
-      return garment.colors.map((c, idx) => ({
-        index: idx,
-        name: c.name,
-        colorName: c.name,
-        hex: c.hex,
-        image: c.image || garment.images[0],
-        sizes: garment.sizes,
-        price: undefined,
-      }));
-    }
-    return [
-      {
-        index: 0,
-        name: 'Original',
-        colorName: 'Original',
-        hex: '#141312',
-        image: garment.images[0],
-        sizes: garment.sizes,
-        price: undefined,
-      },
-    ];
-  }, [hasVariations, garment.variations, garment.colors, garment.images, garment.sizes]);
-
-  const handleSelectColorOption = (opt: (typeof colorOptions)[0]) => {
+  const handleSelectColorOption = (opt: GarmentColorOption) => {
     setSelectedColor(opt.name);
+    let nextSize = selectedSize;
     if (opt.sizes && opt.sizes.length > 0 && !opt.sizes.includes(selectedSize)) {
-      setSelectedSize(opt.sizes[0]);
+      nextSize = opt.sizes[0];
+      setSelectedSize(nextSize);
     }
+    setGarmentSelection(garment.id, {
+      variationIndex: opt.index,
+      colorName: opt.name,
+      size: nextSize,
+    });
     setActiveImageIndex(0);
     setFailedIndices([]);
   };
 
   // Active sizes (from subcollection, variation or parent)
-  const availableSizes = subVariations.length > 0
+  const availableSizes: GarmentSize[] = subVariations.length > 0
     ? subVariations.map((v) => v.option_name)
+    : activeColorOption?.sizes && activeColorOption.sizes.length > 0
+    ? activeColorOption.sizes
     : activeVariation?.sizes && activeVariation.sizes.length > 0
     ? activeVariation.sizes
     : garment.sizes;
 
-  const [selectedSize, setSelectedSize] = useState<GarmentSize>(availableSizes[0] || 'S');
+  const [selectedSize, setSelectedSize] = useState<GarmentSize>(
+    savedSelection?.size && availableSizes.includes(savedSelection.size)
+      ? savedSelection.size
+      : (availableSizes[0] || 'S')
+  );
 
-  // Filter and deduplicate valid image URLs from Firebase for the active variation (or parent)
-  const candidateImages = activeVariation && activeVariation.images && activeVariation.images.length > 0
+  const handleSelectSize = (size: GarmentSize) => {
+    setSelectedSize(size);
+    setGarmentSelection(garment.id, {
+      size,
+    });
+  };
+
+  // Filter and deduplicate valid image URLs for the active color option
+  const candidateImages = activeColorOption?.images && activeColorOption.images.length > 0
+    ? activeColorOption.images
+    : activeColorOption?.image
+    ? [activeColorOption.image, ...garment.images.filter((img) => img !== activeColorOption.image)]
+    : (activeVariation && activeVariation.images && activeVariation.images.length > 0
     ? activeVariation.images
-    : garment.images;
+    : garment.images);
 
   const validImages = useMemo(() => {
     return deduplicateImageUrls(candidateImages);
@@ -251,6 +282,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const activeSubVar = subVariations.find((v) => v.option_name === selectedSize);
   const effectiveBasePrice =
     (activeSubVar?.price && activeSubVar.price > 0 ? activeSubVar.price : null) ||
+    (activeColorOption?.price && activeColorOption.price > 0 ? activeColorOption.price : null) ||
     (activeVariation?.price && activeVariation.price > 0 ? activeVariation.price : null) ||
     garment.price_min ||
     garment.basePrice4Days;
@@ -266,6 +298,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   // Handle Add to Cart
   const handleAddToCart = () => {
+    setGarmentSelection(garment.id, {
+      variationIndex: activeColorOption?.index ?? 0,
+      colorName: selectedColor,
+      size: selectedSize,
+    });
     addToCart({
       garmentId: garment.id,
       garment,
@@ -281,6 +318,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   // Handle Rent Now (Add to Cart & Open Checkout)
   const handleRentNow = () => {
+    setGarmentSelection(garment.id, {
+      variationIndex: activeColorOption?.index ?? 0,
+      colorName: selectedColor,
+      size: selectedSize,
+    });
     addToCart({
       garmentId: garment.id,
       garment,
@@ -599,7 +641,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           id={`btn-size-${size.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                           type="button"
                           disabled={!isAvailable}
-                          onClick={() => setSelectedSize(size)}
+                          onClick={() => handleSelectSize(size)}
                           className={`h-9 px-3.5 rounded-lg font-medium text-xs transition-all border flex items-center gap-1.5 cursor-pointer ${
                             !isAvailable
                               ? 'opacity-30 border-[#E8E4DF] bg-[#FAF9F6] text-[#948E88] cursor-not-allowed line-through'

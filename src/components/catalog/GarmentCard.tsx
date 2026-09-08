@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Garment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { formatPHP, getGarmentShop } from '../../utils/formatters';
+import { formatPHP, getGarmentShop, getGarmentColorOptions } from '../../utils/formatters';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { preloadGarmentVariationImages } from '../../utils/imageCache';
@@ -12,26 +12,49 @@ interface GarmentCardProps {
 }
 
 export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
-  const { setSelectedGarment, wishlist, toggleWishlist } = useApp();
+  const {
+    setSelectedGarment,
+    wishlist,
+    toggleWishlist,
+    garmentSelections,
+    setGarmentSelection,
+  } = useApp();
   const isWishlisted = wishlist.includes(garment.id);
   const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const [selectedVarIndex, setSelectedVarIndex] = useState<number>(0);
 
-  // Determine authentic product source (Love Humbly Shop or Corset Bloomfields)
+  // Compute canonical color/variation options
+  const colorOptions = useMemo(() => getGarmentColorOptions(garment), [garment]);
+
+  // Read saved selection from AppContext if user previously selected a variation
+  const savedSelection = garmentSelections[garment.id];
+  const selectedVarIndex = useMemo(() => {
+    if (savedSelection?.colorName) {
+      const idx = colorOptions.findIndex(
+        (opt) => opt.name.toLowerCase() === savedSelection.colorName!.toLowerCase()
+      );
+      if (idx !== -1) return idx;
+    }
+    if (savedSelection?.variationIndex !== undefined && colorOptions[savedSelection.variationIndex]) {
+      return savedSelection.variationIndex;
+    }
+    return 0;
+  }, [colorOptions, savedSelection]);
+
+  const activeOption = colorOptions[selectedVarIndex] || colorOptions[0];
+
+  // Determine authentic product source
   const productSource = getGarmentShop(garment);
 
-  const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
-  const activeVar = hasVariations ? garment.variations![selectedVarIndex] || garment.variations![0] : null;
-
-  const imagesList = (activeVar && activeVar.images && activeVar.images.length > 0)
-    ? activeVar.images
+  const imagesList = activeOption?.images && activeOption.images.length > 0
+    ? activeOption.images
+    : activeOption?.image
+    ? [activeOption.image, ...garment.images.filter((img) => img !== activeOption.image)]
     : (Array.isArray(garment.images) ? garment.images : []);
 
   const currentImageSrc = imagesList[activeImgIndex] || imagesList[0] || '';
 
   const handleImageError = () => {
-    // If current image fails, automatically try the next image in the array
     if (activeImgIndex < imagesList.length - 1) {
       setActiveImgIndex((prev) => prev + 1);
     }
@@ -39,7 +62,13 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
 
   const handleSelectVariation = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
-    setSelectedVarIndex(index);
+    const opt = colorOptions[index];
+    if (opt) {
+      setGarmentSelection(garment.id, {
+        variationIndex: index,
+        colorName: opt.name,
+      });
+    }
     setActiveImgIndex(0);
   };
 
@@ -48,11 +77,18 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
     setIsVariationModalOpen(true);
   };
 
+  const handleCardClick = () => {
+    setSelectedGarment(garment, {
+      variationIndex: selectedVarIndex,
+      colorName: activeOption?.name,
+    });
+  };
+
   return (
     <>
       <div
         id={`garment-card-${garment.id}`}
-        onClick={() => setSelectedGarment(garment)}
+        onClick={handleCardClick}
         onMouseEnter={() => preloadGarmentVariationImages(garment)}
         className="group bg-[#FFFFFF] rounded-lg border border-[#E8E4DF] overflow-hidden hover:border-[#141312]/40 transition-all duration-300 flex flex-col cursor-pointer"
       >
@@ -80,9 +116,9 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
               </span>
             ) : null}
 
-            {hasVariations && garment.variations!.length > 1 && (
+            {colorOptions.length > 1 && (
               <span className="bg-black/75 backdrop-blur-sm text-white text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
-                {garment.variations!.length} Colors
+                {colorOptions.length} Colors
               </span>
             )}
           </div>
@@ -119,27 +155,27 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
             </h3>
 
             {/* Color Variation Swatches Preview */}
-            {garment.colors.length > 1 && (
+            {colorOptions.length > 1 && (
               <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
-                {garment.colors.slice(0, 5).map((color, cIdx) => {
+                {colorOptions.slice(0, 5).map((opt, cIdx) => {
                   const isSelected = selectedVarIndex === cIdx;
                   return (
                     <button
-                      key={color.name}
+                      key={opt.name || cIdx}
                       type="button"
-                      title={color.name}
+                      title={opt.name}
                       onClick={(e) => handleSelectVariation(e, cIdx)}
-                      className={`w-3 h-3 rounded-full border transition-transform ${
+                      className={`w-3.5 h-3.5 rounded-full border transition-transform cursor-pointer ${
                         isSelected
-                          ? 'scale-125 ring-1 ring-black border-white'
+                          ? 'scale-125 ring-1 ring-[#141312] border-white shadow-xs'
                           : 'border-black/20 hover:scale-110 opacity-70 hover:opacity-100'
                       }`}
-                      style={{ backgroundColor: color.hex }}
+                      style={{ backgroundColor: opt.hex || '#141312' }}
                     />
                   );
                 })}
-                {garment.colors.length > 5 && (
-                  <span className="text-[9px] text-[#948E88]">+{garment.colors.length - 5}</span>
+                {colorOptions.length > 5 && (
+                  <span className="text-[9px] text-[#948E88]">+{colorOptions.length - 5}</span>
                 )}
               </div>
             )}
@@ -161,7 +197,7 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
           {/* Add to Bag Button with Variation Dialog */}
           <button
             id={`btn-card-add-cart-${garment.id}`}
-            onClick={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0) ? (e) => { e.stopPropagation(); setSelectedGarment(garment); } : handleOpenVariationModal}
+            onClick={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0) ? (e) => { e.stopPropagation(); handleCardClick(); } : handleOpenVariationModal}
             className={`w-full py-1.5 px-2.5 rounded text-xs font-medium border transition-all flex items-center justify-center gap-1.5 ${
               garment.is_available_for_rent === false
                 ? 'bg-[#FAF9F6] text-[#78350F] border-[#FDE68A] hover:bg-[#FEF3C7]'
@@ -182,10 +218,20 @@ export const GarmentCard: React.FC<GarmentCardProps> = ({ garment }) => {
         </div>
       </div>
 
-      {/* Variation Selection Dialog */}
+      {/* Variation Selection Dialog pre-seeded with current card selection */}
       <VariationSelectModal
         garment={garment}
         isOpen={isVariationModalOpen}
+        initialVariationIndex={selectedVarIndex}
+        initialColorName={activeOption?.name}
+        onSelectVariation={(idx, colorName, size) => {
+          setGarmentSelection(garment.id, {
+            variationIndex: idx,
+            colorName,
+            size,
+          });
+          setActiveImgIndex(0);
+        }}
         onClose={() => setIsVariationModalOpen(false)}
       />
     </>

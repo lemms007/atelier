@@ -41,6 +41,12 @@ import {
   subscribeToUserProfile,
 } from '../services/firestoreUsers';
 
+export interface GarmentSelectionState {
+  variationIndex: number;
+  colorName?: string;
+  size?: GarmentSize;
+}
+
 interface AppContextType {
   // Mode Separation (User / Customer vs Admin / Backoffice)
   viewMode: ViewMode;
@@ -77,7 +83,9 @@ interface AppContextType {
   adminTab: AdminTab;
   setAdminTab: (tab: AdminTab) => void;
   selectedGarment: Garment | null;
-  setSelectedGarment: (garment: Garment | null) => void;
+  setSelectedGarment: (garment: Garment | null, selection?: Partial<GarmentSelectionState>) => void;
+  garmentSelections: Record<string, GarmentSelectionState>;
+  setGarmentSelection: (garmentId: string, selection: Partial<GarmentSelectionState>) => void;
   activeOrderId: string | null;
   setActiveOrderId: (orderId: string | null) => void;
   isCheckoutOpen: boolean;
@@ -157,7 +165,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [viewMode, setViewMode] = useState<ViewMode>('user');
   const [activeTab, setActiveTabState] = useState<CustomerTab | 'admin'>('explore');
   const [adminTab, setAdminTab] = useState<AdminTab>('verification');
-  const [selectedGarment, setSelectedGarment] = useState<Garment | null>(null);
+  const [selectedGarment, setSelectedGarmentState] = useState<Garment | null>(null);
+  const [garmentSelections, setGarmentSelections] = useState<Record<string, GarmentSelectionState>>({});
+
+  const setGarmentSelection = (garmentId: string, selection: Partial<GarmentSelectionState>) => {
+    setGarmentSelections((prev) => {
+      const existing = prev[garmentId] || { variationIndex: 0 };
+      return {
+        ...prev,
+        [garmentId]: {
+          ...existing,
+          ...selection,
+        },
+      };
+    });
+  };
+
+  const setSelectedGarment = (
+    garment: Garment | null,
+    selection?: Partial<GarmentSelectionState>
+  ) => {
+    if (garment && selection) {
+      setGarmentSelection(garment.id, selection);
+    }
+    setSelectedGarmentState(garment);
+  };
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
@@ -768,6 +800,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAdminTab,
         selectedGarment,
         setSelectedGarment,
+        garmentSelections,
+        setGarmentSelection,
         activeOrderId,
         setActiveOrderId,
         isCheckoutOpen,

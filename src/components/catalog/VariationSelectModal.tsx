@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Garment, GarmentSize, GarmentVariation, FirestoreProductVariation } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
@@ -6,6 +6,8 @@ import {
   addDaysToDate,
   calculateRentalPrice,
   formatDisplayDateShort,
+  getGarmentColorOptions,
+  GarmentColorOption,
 } from '../../utils/formatters';
 import { X, Check, ShoppingBag, Sparkles, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
@@ -14,12 +16,20 @@ import { fetchProductVariationsFromFirestore } from '../../services/firestorePro
 interface VariationSelectModalProps {
   garment: Garment;
   isOpen: boolean;
+  initialVariationIndex?: number;
+  initialColorName?: string;
+  initialSize?: GarmentSize;
+  onSelectVariation?: (index: number, colorName: string, size?: GarmentSize) => void;
   onClose: () => void;
 }
 
 export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   garment,
   isOpen,
+  initialVariationIndex,
+  initialColorName,
+  initialSize,
+  onSelectVariation,
   onClose,
 }) => {
   const { addToCart, configuredDurations } = useApp();
@@ -37,21 +47,58 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
     };
   }, [garment]);
 
-  const hasVariations = Array.isArray(garment.variations) && garment.variations.length > 0;
-  const [selectedVarIndex, setSelectedVarIndex] = useState<number>(0);
+  const colorOptions = useMemo(() => getGarmentColorOptions(garment), [garment]);
 
-  const activeVar: GarmentVariation | null = hasVariations
-    ? garment.variations![selectedVarIndex] || garment.variations![0]
-    : null;
+  // Compute initial index from props
+  const computeInitialIndex = () => {
+    if (initialColorName) {
+      const foundIdx = colorOptions.findIndex(
+        (opt) => opt.name.toLowerCase() === initialColorName.toLowerCase()
+      );
+      if (foundIdx !== -1) return foundIdx;
+    }
+    if (initialVariationIndex !== undefined && colorOptions[initialVariationIndex]) {
+      return initialVariationIndex;
+    }
+    return 0;
+  };
 
-  // Available sizes derived from subcollection or variations or parent
+  const [selectedVarIndex, setSelectedVarIndex] = useState<number>(computeInitialIndex);
+
+  // Sync index whenever modal is opened or initial props change
+  useEffect(() => {
+    if (isOpen) {
+      const idx = computeInitialIndex();
+      setSelectedVarIndex(idx);
+    }
+  }, [isOpen, initialVariationIndex, initialColorName, colorOptions]);
+
+  const activeOpt = colorOptions[selectedVarIndex] || colorOptions[0];
+  const activeVar: GarmentVariation | null =
+    garment.variations && garment.variations[selectedVarIndex]
+      ? garment.variations[selectedVarIndex]
+      : null;
+
+  // Available sizes derived from subcollection or active color option or parent
   const availableSizes: GarmentSize[] = (subVariations.length > 0)
     ? subVariations.map((v) => v.option_name)
-    : (activeVar?.sizes && activeVar.sizes.length > 0)
-    ? activeVar.sizes
+    : (activeOpt?.sizes && activeOpt.sizes.length > 0)
+    ? activeOpt.sizes
     : (garment.sizes.length > 0 ? garment.sizes : ['S', 'M', 'L']);
 
-  const [selectedSize, setSelectedSize] = useState<GarmentSize>(availableSizes[0] || 'S');
+  const [selectedSize, setSelectedSize] = useState<GarmentSize>(
+    initialSize && availableSizes.includes(initialSize) ? initialSize : (availableSizes[0] || 'S')
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialSize && availableSizes.includes(initialSize)) {
+        setSelectedSize(initialSize);
+      } else if (!availableSizes.includes(selectedSize)) {
+        setSelectedSize(availableSizes[0] || 'S');
+      }
+    }
+  }, [isOpen, initialSize, selectedVarIndex, availableSizes]);
 
   // Dates & Durations
   const durationOptions = configuredDurations && configuredDurations.length > 0
@@ -70,6 +117,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   const matchedSubVar = subVariations.find((v) => v.option_name === selectedSize);
   const effectiveBasePrice =
     (matchedSubVar?.price && matchedSubVar.price > 0 ? matchedSubVar.price : null) ||
+    (activeOpt?.price && activeOpt.price > 0 ? activeOpt.price : null) ||
     (activeVar?.price && activeVar.price > 0 ? activeVar.price : null) ||
     garment.price_min ||
     garment.basePrice4Days;
@@ -81,14 +129,24 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   );
 
   // Current preview image
-  const previewImage = (activeVar?.images && activeVar.images[0]) || garment.images[0] || '';
+  const previewImage = activeOpt?.image || (activeVar?.images && activeVar.images[0]) || garment.images[0] || '';
 
   const storeSource = garment.store || (garment.designer !== 'Atelier Manila' ? garment.designer : 'Love Humbly Shop');
+
+  const handleSelectColorOption = (idx: number, opt: GarmentColorOption) => {
+    setSelectedVarIndex(idx);
+    let nextSize = selectedSize;
+    if (opt.sizes && opt.sizes.length > 0 && !opt.sizes.includes(selectedSize)) {
+      nextSize = opt.sizes[0];
+      setSelectedSize(nextSize);
+    }
+    onSelectVariation?.(idx, opt.name, nextSize);
+  };
 
   if (!isOpen) return null;
 
   const handleConfirmAddToCart = () => {
-    const chosenColor = activeVar ? activeVar.name : (garment.colors[0]?.name || 'Standard');
+    const chosenColor = activeOpt ? activeOpt.name : (garment.colors[0]?.name || 'Standard');
 
     addToCart({
       garmentId: garment.id,
@@ -102,6 +160,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
       securityDeposit: garment.securityDeposit,
     });
 
+    onSelectVariation?.(selectedVarIndex, chosenColor, selectedSize);
     onClose();
   };
 
@@ -159,26 +218,21 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
           </div>
 
           {/* 1. Color / Style Variation */}
-          {hasVariations && garment.variations!.length > 1 && (
+          {colorOptions.length > 1 && (
             <div className="space-y-2">
               <label className="font-semibold text-[#141312] block tracking-wide">
-                1. Select Colorway: <span className="font-serif text-[#80232F]">{activeVar?.name}</span>
+                1. Select Colorway: <span className="font-serif text-[#80232F]">{activeOpt?.name}</span>
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {garment.variations!.map((variation, idx) => {
+                {colorOptions.map((opt, idx) => {
                   const isSelected = selectedVarIndex === idx;
-                  const thumb = (variation.images && variation.images[0]) || garment.images[0];
+                  const thumb = opt.image || garment.images[0];
                   return (
                     <button
-                      key={variation.id || idx}
+                      key={opt.name || idx}
                       type="button"
-                      onClick={() => {
-                        setSelectedVarIndex(idx);
-                        if (variation.sizes && variation.sizes.length > 0 && !variation.sizes.includes(selectedSize)) {
-                          setSelectedSize(variation.sizes[0]);
-                        }
-                      }}
-                      className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${
+                      onClick={() => handleSelectColorOption(idx, opt)}
+                      className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#141312] bg-[#FAF9F6] ring-1 ring-[#141312]'
                           : 'border-[#E8E4DF] hover:border-[#141312]/40 bg-white'
@@ -188,18 +242,19 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                         <div className="w-7 h-9 rounded overflow-hidden shrink-0 bg-[#E8E4DF]">
                           <img
                             src={thumb}
-                            alt={variation.name}
+                            alt={opt.name}
                             className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
                           />
                         </div>
                       ) : (
                         <span
                           className="w-4 h-4 rounded-full border shrink-0"
-                          style={{ backgroundColor: variation.hex || '#ccc' }}
+                          style={{ backgroundColor: opt.hex || '#ccc' }}
                         />
                       )}
                       <span className="text-[11px] font-medium text-[#141312] truncate flex-1">
-                        {variation.name}
+                        {opt.name}
                       </span>
                       {isSelected && <Check className="w-3.5 h-3.5 text-[#141312] shrink-0" />}
                     </button>
