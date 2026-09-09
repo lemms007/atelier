@@ -17,6 +17,7 @@ export const AppHeader: React.FC = () => {
     currentUser,
     userProfile,
     setIsGoogleLoginModalOpen,
+    setSelectedGarment,
   } = useApp();
 
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
@@ -33,6 +34,7 @@ export const AppHeader: React.FC = () => {
         <button
           id="btn-brand-home"
           onClick={() => {
+            setSelectedGarment(null);
             setActiveTab('explore');
           }}
           className="text-left group flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5 focus:outline-none cursor-pointer"
@@ -88,6 +90,7 @@ export const AppHeader: React.FC = () => {
           <button
             id="btn-header-wishlist"
             onClick={() => {
+              setSelectedGarment(null);
               setSelectedCategory('Wishlist');
               setActiveTab('explore');
             }}
@@ -110,7 +113,10 @@ export const AppHeader: React.FC = () => {
           {currentUser ? (
             <button
               id="btn-header-user-profile"
-              onClick={() => setActiveTab('profile')}
+              onClick={() => {
+                setSelectedGarment(null);
+                setActiveTab('profile');
+              }}
               className={`h-9 px-2 sm:px-2.5 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer border ${
                 activeTab === 'profile'
                   ? 'bg-[#141312] text-white border-[#141312]'
@@ -149,7 +155,10 @@ export const AppHeader: React.FC = () => {
           {/* Admin Portal Switcher Button */}
           <button
             id="btn-header-admin-desk"
-            onClick={switchToAdmin}
+            onClick={() => {
+              setSelectedGarment(null);
+              switchToAdmin();
+            }}
             className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors bg-[#FFFFFF] text-[#5C5854] border border-[#E8E4DF] hover:border-[#141312] hover:text-[#141312] cursor-pointer"
             title="Switch to Admin Verification Console"
           >
@@ -165,7 +174,10 @@ export const AppHeader: React.FC = () => {
           {/* Shopping Bag Button with Live Minimalist Badge */}
           <button
             id="btn-header-cart"
-            onClick={() => setActiveTab('cart')}
+            onClick={() => {
+              setSelectedGarment(null);
+              setActiveTab('cart');
+            }}
             className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors cursor-pointer ${
               activeTab === 'cart'
                 ? 'bg-[#141312] text-white'

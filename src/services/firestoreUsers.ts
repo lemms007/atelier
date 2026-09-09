@@ -145,7 +145,7 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
       city: 'Taguig City',
       province: 'Metro Manila',
       postalCode: '1634',
-      deliveryMethod: 'same_day_courier',
+      deliveryMethod: 'lalamove',
     },
     measurements: {
       primarySize: 'S',

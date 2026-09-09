@@ -117,8 +117,8 @@ export const ProfileView: React.FC = () => {
     await updateUserProfile({
       shippingDetails: {
         ...shippingForm,
-        deliveryMethod: 'same_day_courier',
-        shippingFee: 350,
+        deliveryMethod: 'lalamove',
+        shippingFee: 0,
       },
     });
     setIsEditingShipping(false);

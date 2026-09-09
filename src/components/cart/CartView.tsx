@@ -24,8 +24,9 @@ export const CartView: React.FC = () => {
     setSelectedGarment,
   } = useApp();
 
-  const estimatedShipping = 350;
-  const totalDueNow = cartGrandTotal + estimatedShipping;
+  // Courier shipping is calculated live via the Lalamove app and shouldered directly by the renter
+  const estimatedShipping = 0;
+  const totalDueNow = cartRentalSubtotal;
 
   if (cart.length === 0) {
     return (
@@ -137,17 +138,17 @@ export const CartView: React.FC = () => {
               {/* Pricing breakdown per item */}
               <div className="mt-2.5 pt-2 border-t border-[#E8E4DF] flex items-baseline justify-between">
                 <div>
-                  <span className="text-[11px] text-[#5C5854]">Rental: </span>
+                  <span className="text-[11px] text-[#5C5854]">Price: </span>
                   <span className="font-semibold text-[#141312] text-xs">
                     {formatPHP(item.rentalPrice)}
                   </span>
                 </div>
                 <div className="text-[10px] text-[#5C5854]">
-                  <span>Deposit: </span>
+                  <span>Refundable: </span>
                   <span className="font-medium text-[#141312]">
                     {formatPHP(item.securityDeposit)}
                   </span>
-                  <span className="text-[#948E88]"> (Refundable)</span>
+                  <span className="text-[#948E88]"> (50%)</span>
                 </div>
               </div>
             </div>
@@ -165,15 +166,15 @@ export const CartView: React.FC = () => {
         ))}
       </div>
 
-      {/* Transparent Price Ledger */}
+      {/* Summary */}
       <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] p-4 sm:p-5 space-y-3">
         <h3 className="font-serif text-sm font-semibold text-[#141312] border-b border-[#E8E4DF] pb-2">
-          Transparent Price Ledger
+          Summary
         </h3>
 
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between text-[#5C5854]">
-            <span>Rental Subtotal ({cart.length} {cart.length === 1 ? 'Garment' : 'Garments'})</span>
+            <span>Subtotal ({cart.length} {cart.length === 1 ? 'Garment' : 'Garments'})</span>
             <span className="font-medium text-[#141312]">
               {formatPHP(cartRentalSubtotal)}
             </span>
@@ -181,9 +182,9 @@ export const CartView: React.FC = () => {
 
           <div className="flex items-center justify-between text-[#5C5854]">
             <div className="flex items-center gap-1.5">
-              <span>Refundable Security Deposit</span>
+              <span>Refundable (50%)</span>
               <span className="text-[9px] text-[#141312] bg-[#F5F3EF] border border-[#E8E4DF] px-1.5 py-0.2 rounded font-medium">
-                100% Refundable
+                Refunded upon return
               </span>
             </div>
             <span className="font-medium text-[#141312]">
@@ -192,19 +193,24 @@ export const CartView: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between text-[#5C5854]">
-            <span>White-Glove Courier Delivery & Return</span>
-            <span className="font-medium text-[#141312]">
-              {formatPHP(estimatedShipping)}
+            <div className="flex items-center gap-1.5">
+              <span>Lalamove Courier Delivery</span>
+              <span className="text-[9px] text-[#141312] bg-[#F5F3EF] border border-[#E8E4DF] px-1.5 py-0.2 rounded font-medium">
+                Shouldered by Renter
+              </span>
+            </div>
+            <span className="font-medium text-[#141312] text-[11px]">
+              Paid via Lalamove App
             </span>
           </div>
 
           <div className="pt-2 border-t border-[#E8E4DF] flex items-baseline justify-between text-sm">
             <div>
               <span className="font-semibold text-[#141312] block">
-                Grand Total Due Now
+                Total
               </span>
               <span className="text-[10px] text-[#948E88]">
-                Includes {formatPHP(cartDepositSubtotal)} refundable deposit hold
+                {formatPHP(cartDepositSubtotal)} (50%) will be refunded upon garment return
               </span>
             </div>
             <span className="font-serif text-lg font-semibold text-[#141312]">
@@ -217,7 +223,7 @@ export const CartView: React.FC = () => {
         <div className="bg-[#F5F3EF] border border-[#E8E4DF] rounded-lg p-3 flex items-start gap-2 text-[11px] text-[#5C5854]">
           <ShieldCheck className="w-3.5 h-3.5 text-[#141312] shrink-0 mt-0.5 stroke-[1.5]" />
           <p>
-            <strong className="text-[#141312]">Atelier Guarantee:</strong> Your security deposit of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
+            <strong className="text-[#141312]">Atelier Guarantee:</strong> Your 50% refundable amount of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
           </p>
         </div>
       </div>

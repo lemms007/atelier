@@ -116,18 +116,18 @@ const AppContent: React.FC = () => {
 
       {/* Main Storefront Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto">
-        {selectedGarment ? (
-          <ProductDetailPage
-            garment={selectedGarment}
-            onBack={() => setSelectedGarment(null)}
-          />
-        ) : (
-          <>
-            {activeTab === 'explore' && <CatalogView />}
-            {activeTab === 'cart' && <CartView />}
-            {activeTab === 'my-rentals' && <MyRentalsView />}
-            {activeTab === 'profile' && <ProfileView />}
-          </>
+        {activeTab === 'cart' && <CartView />}
+        {activeTab === 'my-rentals' && <MyRentalsView />}
+        {activeTab === 'profile' && <ProfileView />}
+        {activeTab === 'explore' && (
+          selectedGarment ? (
+            <ProductDetailPage
+              garment={selectedGarment}
+              onBack={() => setSelectedGarment(null)}
+            />
+          ) : (
+            <CatalogView />
+          )
         )}
       </main>
 

@@ -221,7 +221,7 @@ export interface PaymentData {
   paidAt: string;
 }
 
-export type DeliveryMethod = 'same_day_courier' | 'express_provincial';
+export type DeliveryMethod = 'lalamove' | 'same_day_courier' | 'express_provincial';
 
 export type ViewMode = 'user' | 'admin';
 export type CustomerTab = 'explore' | 'cart' | 'my-rentals' | 'profile';

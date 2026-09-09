@@ -462,7 +462,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] pb-32">
+    <div className="min-h-screen bg-[#FAF9F6] pb-28 sm:pb-32 md:pb-16">
       {/* Floating Top Navigation Bar */}
       <div className="sticky top-0 z-30 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E8E4DF] px-4 sm:px-6 lg:px-8 py-3">
         <div className="max-w-6xl xl:max-w-7xl mx-auto flex items-center justify-between">
@@ -605,14 +605,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {/* 2. Garment Details & Editorial Header Card */}
             <div className="space-y-3 bg-[#FFFFFF] p-4 sm:p-5 rounded-xl border border-[#E8E4DF] shadow-xs">
               <div>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#948E88]">
-                    {productType}
-                  </span>
-                  <span className="text-[9px] font-medium text-[#80232F] bg-[#80232F]/8 px-2 py-0.5 rounded">
-                    Vault Certified
-                  </span>
-                </div>
                 <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#141312] leading-tight">
                   {garment.name}
                 </h1>
@@ -621,26 +613,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </p>
               </div>
 
-              {/* Key Silhouette & Fabric Pills */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {garment.fabric && (
-                  <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-2 py-0.5 rounded-full">
-                    {garment.fabric}
-                  </span>
-                )}
-                {garment.silhouette && (
-                  <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-2 py-0.5 rounded-full">
-                    {garment.silhouette}
-                  </span>
-                )}
-                {garment.occasion && (
-                  <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-2 py-0.5 rounded-full">
-                    {garment.occasion}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs sm:text-[13px] text-[#5C5854] leading-relaxed">
+              <p className="text-xs sm:text-[13px] text-[#5C5854] leading-relaxed whitespace-pre-line tracking-normal">
                 {garment.description}
               </p>
             </div>
@@ -652,10 +625,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] shadow-xs overflow-hidden">
               {/* Header: patterned after Add to Bag dialog */}
               <div className="p-4 sm:p-5 border-b border-[#E8E4DF] bg-[#FAF9F6]/60">
-                <span className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[#80232F] block">
-                  {productSource}
-                </span>
-                <div className="flex items-center justify-between mt-0.5">
+                <div className="flex items-center justify-between">
                   <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
                     Rental Options
                   </h3>
@@ -899,8 +869,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </div>
               </div>
 
-              {/* Footer: Action Buttons */}
-              <div className="p-4 sm:p-5 bg-[#FAF9F6] border-t border-[#E8E4DF]">
+              {/* Footer: Action Buttons (Desktop only - mobile uses sticky bottom bar) */}
+              <div className="hidden md:block p-4 sm:p-5 bg-[#FAF9F6] border-t border-[#E8E4DF]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     id="btn-inline-add-to-cart"
@@ -942,37 +912,37 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         </div>
       </div>
 
-      {/* 6. Sticky Bottom Action Bar */}
+      {/* 6. Sticky Bottom Action Bar (Mobile only) */}
       <div
         id="pdp-sticky-bar"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#E8E4DF] py-3 px-4 sm:px-6 lg:px-8"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#E8E4DF] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] px-3.5 sm:px-6 lg:px-8 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden"
       >
-        <div className="max-w-6xl xl:max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto flex items-center justify-between gap-2.5 sm:gap-4">
           {/* Price Breakdown */}
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
+          <div className="flex flex-col shrink-0">
+            <div className="flex items-baseline gap-1">
+              <span className="font-serif text-base sm:text-xl font-bold sm:font-semibold text-[#141312] leading-none">
                 {formatPHP(rentalPrice)}
               </span>
-              <span className="text-[11px] text-[#948E88]">
+              <span className="text-[10px] sm:text-[11px] text-[#948E88] whitespace-nowrap">
                 ({durationDays} Days)
               </span>
             </div>
-            <span className="text-[10px] text-[#5C5854]">
+            <span className="text-[9px] sm:text-[10px] text-[#5C5854] mt-0.5 whitespace-nowrap">
               ({formatPHP(securityDeposit)} refundable · 50%)
             </span>
           </div>
 
           {/* Dual Action CTAs */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               id="btn-pdp-add-to-cart"
               type="button"
               disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
               onClick={handleAddToCart}
-              className="h-10 px-4 sm:px-5 rounded-md text-xs font-medium border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 px-3.5 sm:px-5 rounded-lg sm:rounded-md text-xs font-semibold sm:font-medium border border-[#141312] text-[#141312] bg-white hover:bg-[#FAF9F6] active:scale-95 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
             >
-              <ShoppingBag className="w-3.5 h-3.5 stroke-[1.75]" />
+              <ShoppingBag className="w-3.5 h-3.5 stroke-[1.75] shrink-0" />
               <span>
                 {garment.is_available_for_rent === false
                   ? 'Rental Paused'
@@ -987,9 +957,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               type="button"
               disabled={garment.is_available_for_rent === false || (garment.quantity !== undefined && garment.quantity <= 0)}
               onClick={handleRentNow}
-              className="h-10 px-5 sm:px-6 rounded-md text-xs font-medium text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 px-4 sm:px-6 rounded-lg sm:rounded-md text-xs font-semibold sm:font-medium text-white bg-[#141312] hover:bg-[#2A2725] active:scale-95 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
             >
-              <CalendarCheck className="w-3.5 h-3.5" />
+              <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {garment.is_available_for_rent === false
                   ? 'Unavailable'

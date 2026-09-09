@@ -283,7 +283,9 @@ export const OrderTrackingDetail: React.FC<OrderTrackingDetailProps> = ({
           </div>
           <div className="flex justify-between text-[#5C5854]">
             <span>Courier Delivery & Return:</span>
-            <span className="font-medium text-[#141312]">{formatPHP(order.shippingFee)}</span>
+            <span className="font-medium text-[#141312]">
+              {order.shippingFee > 0 ? formatPHP(order.shippingFee) : 'Lalamove (Shouldered by Renter)'}
+            </span>
           </div>
           <div className="flex justify-between text-[#5C5854]">
             <span>Refundable Deposit:</span>

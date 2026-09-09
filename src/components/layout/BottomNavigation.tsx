@@ -11,10 +11,11 @@ export const BottomNavigation: React.FC = () => {
     orders,
     isCheckoutOpen,
     setSelectedGarment,
+    selectedGarment,
   } = useApp();
 
-  if (isCheckoutOpen || viewMode === 'admin') {
-    return null; // Hidden during checkout or in admin mode
+  if (isCheckoutOpen || viewMode === 'admin' || selectedGarment) {
+    return null; // Hidden during checkout, in admin mode, or when viewing Product Detail Page
   }
 
   // Count active/pending orders
@@ -26,7 +27,7 @@ export const BottomNavigation: React.FC = () => {
     <nav
       id="mobile-bottom-nav"
       aria-label="Mobile Navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#E8E4DF] shadow-[0_-2px_10px_rgba(20,19,18,0.02)]"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#E8E4DF] shadow-[0_-2px_10px_rgba(20,19,18,0.02)] md:hidden"
     >
       <div className="max-w-md mx-auto h-16 px-6 flex items-center justify-between">
         {/* 1. Explore */}

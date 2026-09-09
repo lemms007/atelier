@@ -194,6 +194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Capture the current scroll position and target garment before entering PDP
       lastScrollYRef.current = window.scrollY || document.documentElement.scrollTop || 0;
       lastGarmentIdRef.current = garment.id;
+      setActiveTabState('explore');
       if (selection) {
         setGarmentSelection(garment.id, selection);
       }
@@ -431,6 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setActiveTab = (tab: CustomerTab | 'admin') => {
+    setSelectedGarmentState(null);
     if (tab === 'admin') {
       switchToAdmin();
     } else {
@@ -679,7 +681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cartCount = cart.length;
   const cartRentalSubtotal = cart.reduce((acc, item) => acc + item.rentalPrice, 0);
   const cartDepositSubtotal = cart.reduce((acc, item) => acc + item.securityDeposit, 0);
-  const cartGrandTotal = cartRentalSubtotal + cartDepositSubtotal;
+  const cartGrandTotal = cartRentalSubtotal;
 
   // Order actions
   const createOrder = (
@@ -692,8 +694,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const subtotalRental = cartRentalSubtotal;
     const totalDeposit = cartDepositSubtotal;
-    const shippingFee = shipping.shippingFee;
-    const grandTotal = subtotalRental + totalDeposit + shippingFee;
+    const shippingFee = shipping.shippingFee || 0;
+    const grandTotal = subtotalRental + shippingFee;
 
     const newOrder: RentalOrder = {
       id: orderId,
