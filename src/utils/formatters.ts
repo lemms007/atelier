@@ -112,22 +112,16 @@ export const getGarmentShop = (garment: {
   if (garment.store && garment.store.trim()) {
     return normalizeShopName(garment.store);
   }
-  if (garment.designer && garment.designer.trim() && garment.designer !== 'Atelier Manila') {
+  if (garment.designer && garment.designer.trim()) {
     return normalizeShopName(garment.designer);
   }
-  if (garment.name && garment.name.toLowerCase().includes('corset')) {
-    return 'Corset Bloomfield';
-  }
-  return 'Love Humbly Shop';
+  return '';
 };
 
 export const getAvailableShops = (
   garments: Array<{ store?: string; designer?: string; name?: string }>
 ): string[] => {
   const shopSet = new Set<string>();
-  // Pre-seed known canonical shops
-  shopSet.add('Love Humbly Shop');
-  shopSet.add('Corset Bloomfield');
   garments.forEach((g) => {
     const s = getGarmentShop(g);
     if (s) shopSet.add(normalizeShopName(s));

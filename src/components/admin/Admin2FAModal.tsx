@@ -335,7 +335,7 @@ export const Admin2FAModal: React.FC = () => {
 
               <div className="text-center">
                 <span className="text-[10px] text-[#948E88]">
-                  Demo 2FA Security • Code is delivered instantly to your simulated inbox.
+                  Two-Factor Authentication • Code is dispatched securely for staff verification.
                 </span>
               </div>
             </div>

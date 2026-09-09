@@ -203,11 +203,6 @@ export const AdminInventoryView: React.FC = () => {
     });
   }, [garments, searchTerm, selectedCategory, inventoryStatusFilter]);
 
-  // Check if any demo items exist
-  const hasDemoGarments = garments.some((g) =>
-    ['garment-1', 'garment-2', 'garment-3', 'garment-4', 'garment-5', 'garment-6'].includes(g.id)
-  );
-
   // Fast inline toggle for rental availability
   const handleToggleRentalAvailability = async (garment: Garment) => {
     const nextVal = garment.is_available_for_rent === false ? true : false;
@@ -651,22 +646,6 @@ export const AdminInventoryView: React.FC = () => {
             )}
             <span>Normalize Variations</span>
           </button>
-
-          {hasDemoGarments && (
-            <button
-              onClick={handlePurgeDemo}
-              disabled={isPurging}
-              className="px-3 py-2 border border-[#FEE2E2] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#B91C1C] text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-              title="Remove dummy sample pieces from Firestore"
-            >
-              {isPurging ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5" />
-              )}
-              <span>Clear Demo Pieces</span>
-            </button>
-          )}
 
           <button
             id="btn-admin-add-garment"

@@ -49,32 +49,32 @@ export const ProfileView: React.FC = () => {
 
   // Shipping Form
   const [shippingForm, setShippingForm] = useState({
-    fullName: userProfile?.shippingDetails?.fullName || userProfile?.displayName || currentUser?.displayName || 'Beatriz Zobel-de Ayala',
-    mobileNumber: userProfile?.shippingDetails?.mobileNumber || userProfile?.phoneNumber || '+63 917 554 9912',
-    email: userProfile?.shippingDetails?.email || userProfile?.email || currentUser?.email || 'beatriz.ayala@luxemail.ph',
-    deliveryAddress: userProfile?.shippingDetails?.deliveryAddress || 'Unit 38B, Pacific Plaza Towers, 4th Avenue, Bonifacio Global City',
-    landmarkNotes: userProfile?.shippingDetails?.landmarkNotes || 'Leave with the 24/7 concierge lobby front desk',
-    city: userProfile?.shippingDetails?.city || 'Taguig City',
-    province: userProfile?.shippingDetails?.province || 'Metro Manila',
-    postalCode: userProfile?.shippingDetails?.postalCode || '1634',
+    fullName: userProfile?.shippingDetails?.fullName || userProfile?.displayName || currentUser?.displayName || '',
+    mobileNumber: userProfile?.shippingDetails?.mobileNumber || userProfile?.phoneNumber || '',
+    email: userProfile?.shippingDetails?.email || userProfile?.email || currentUser?.email || '',
+    deliveryAddress: userProfile?.shippingDetails?.deliveryAddress || '',
+    landmarkNotes: userProfile?.shippingDetails?.landmarkNotes || '',
+    city: userProfile?.shippingDetails?.city || '',
+    province: userProfile?.shippingDetails?.province || '',
+    postalCode: userProfile?.shippingDetails?.postalCode || '',
   });
 
   // Sizing Form
   const [sizingForm, setSizingForm] = useState({
     primarySize: (userProfile?.measurements?.primarySize || 'S') as GarmentSize,
-    bust: userProfile?.measurements?.bust || '33" (84cm)',
-    waist: userProfile?.measurements?.waist || '25" (63cm)',
-    hips: userProfile?.measurements?.hips || '35" (89cm)',
-    height: userProfile?.measurements?.height || '5\'9"',
+    bust: userProfile?.measurements?.bust || '',
+    waist: userProfile?.measurements?.waist || '',
+    hips: userProfile?.measurements?.hips || '',
+    height: userProfile?.measurements?.height || '',
   });
 
   // KYC Form
   const [kycForm, setKycForm] = useState({
     idType: (userProfile?.kycDetails?.idType || 'Philippine Passport') as GovernmentIdType,
-    idNumber: userProfile?.kycDetails?.idNumber || 'P8920412B',
-    frontIdImage: userProfile?.kycDetails?.frontIdImage || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
-    backIdImage: userProfile?.kycDetails?.backIdImage || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
-    selfieWithIdImage: userProfile?.kycDetails?.selfieWithIdImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    idNumber: userProfile?.kycDetails?.idNumber || '',
+    frontIdImage: userProfile?.kycDetails?.frontIdImage || '',
+    backIdImage: userProfile?.kycDetails?.backIdImage || '',
+    selfieWithIdImage: userProfile?.kycDetails?.selfieWithIdImage || '',
   });
 
   // Sync state when userProfile updates
@@ -87,27 +87,27 @@ export const ProfileView: React.FC = () => {
           email: userProfile.shippingDetails.email || userProfile.email || '',
           deliveryAddress: userProfile.shippingDetails.deliveryAddress || '',
           landmarkNotes: userProfile.shippingDetails.landmarkNotes || '',
-          city: userProfile.shippingDetails.city || 'Taguig City',
-          province: userProfile.shippingDetails.province || 'Metro Manila',
-          postalCode: userProfile.shippingDetails.postalCode || '1634',
+          city: userProfile.shippingDetails.city || '',
+          province: userProfile.shippingDetails.province || '',
+          postalCode: userProfile.shippingDetails.postalCode || '',
         });
       }
       if (userProfile.measurements) {
         setSizingForm({
           primarySize: userProfile.measurements.primarySize || 'S',
-          bust: userProfile.measurements.bust || '33" (84cm)',
-          waist: userProfile.measurements.waist || '25" (63cm)',
-          hips: userProfile.measurements.hips || '35" (89cm)',
-          height: userProfile.measurements.height || '5\'9"',
+          bust: userProfile.measurements.bust || '',
+          waist: userProfile.measurements.waist || '',
+          hips: userProfile.measurements.hips || '',
+          height: userProfile.measurements.height || '',
         });
       }
       if (userProfile.kycDetails) {
         setKycForm({
           idType: (userProfile.kycDetails.idType || 'Philippine Passport') as GovernmentIdType,
           idNumber: userProfile.kycDetails.idNumber || '',
-          frontIdImage: userProfile.kycDetails.frontIdImage || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+          frontIdImage: userProfile.kycDetails.frontIdImage || '',
           backIdImage: userProfile.kycDetails.backIdImage || '',
-          selfieWithIdImage: userProfile.kycDetails.selfieWithIdImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+          selfieWithIdImage: userProfile.kycDetails.selfieWithIdImage || '',
         });
       }
     }
@@ -417,15 +417,21 @@ export const ProfileView: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-1.5 text-xs text-[#5C5854]">
-            <p className="font-medium text-[#141312]">{shippingForm.fullName} • {shippingForm.mobileNumber}</p>
-            <p>{shippingForm.deliveryAddress}, {shippingForm.city}, {shippingForm.province} {shippingForm.postalCode}</p>
-            {shippingForm.landmarkNotes && (
-              <p className="text-[11px] text-[#78716C] italic">Note: {shippingForm.landmarkNotes}</p>
+            {shippingForm.fullName || shippingForm.deliveryAddress ? (
+              <>
+                <p className="font-medium text-[#141312]">{shippingForm.fullName} {shippingForm.mobileNumber ? `• ${shippingForm.mobileNumber}` : ''}</p>
+                <p>{[shippingForm.deliveryAddress, shippingForm.city, shippingForm.province, shippingForm.postalCode].filter(Boolean).join(', ')}</p>
+                {shippingForm.landmarkNotes && (
+                  <p className="text-[11px] text-[#78716C] italic">Note: {shippingForm.landmarkNotes}</p>
+                )}
+                <div className="pt-1 flex items-center gap-1.5 text-[10px] text-[#1E562F]">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Auto-filled at checkout</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-[#948E88] italic">No delivery address saved yet. Click Edit to set your reusable address.</p>
             )}
-            <div className="pt-1 flex items-center gap-1.5 text-[10px] text-[#1E562F]">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Auto-filled at checkout</span>
-            </div>
           </div>
         )}
       </div>
@@ -444,7 +450,7 @@ export const ProfileView: React.FC = () => {
             className="text-xs font-medium text-[#141312] hover:text-[#5C5854] flex items-center gap-1 cursor-pointer"
           >
             <Edit3 className="w-3 h-3" />
-            <span>{isEditingKYC ? 'Cancel' : 'Update ID'}</span>
+            <span>{isEditingKYC ? 'Cancel' : (kycForm.idNumber || kycForm.frontIdImage ? 'Update ID' : 'Add ID')}</span>
           </button>
         </div>
 
@@ -534,21 +540,27 @@ export const ProfileView: React.FC = () => {
           </div>
         ) : (
           <div className="flex items-center justify-between text-xs">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-[#141312]">{kycForm.idType}</span>
-                <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-1.5 py-0.2 rounded font-mono">
-                  {kycForm.idNumber || 'Verified ID'}
-                </span>
-              </div>
-              <p className="text-[11px] text-[#78716C]">
-                Front ID & Live Selfie saved • Reusable across all couture rentals
-              </p>
-            </div>
-            <div className="flex items-center gap-1 text-[10px] text-[#1E562F] bg-[#E7F0E9] px-2 py-1 rounded-full font-medium shrink-0">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Verified VIP</span>
-            </div>
+            {kycForm.idNumber || kycForm.frontIdImage ? (
+              <>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[#141312]">{kycForm.idType}</span>
+                    <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-1.5 py-0.2 rounded font-mono">
+                      {kycForm.idNumber || 'Uploaded ID'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#78716C]">
+                    Government ID credentials saved • Reusable across all rentals
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-[#1E562F] bg-[#E7F0E9] px-2 py-1 rounded-full font-medium shrink-0">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>VIP KYC</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-[#948E88] italic">No government ID uploaded yet. Click Add ID to save your credentials.</p>
+            )}
           </div>
         )}
       </div>
@@ -597,6 +609,7 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={sizingForm.bust}
                   onChange={(e) => setSizingForm({ ...sizingForm, bust: e.target.value })}
+                  placeholder={'33"'}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2 py-1.5 text-xs text-center text-[#141312]"
                 />
               </div>
@@ -608,6 +621,7 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={sizingForm.waist}
                   onChange={(e) => setSizingForm({ ...sizingForm, waist: e.target.value })}
+                  placeholder={'26"'}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2 py-1.5 text-xs text-center text-[#141312]"
                 />
               </div>
@@ -619,6 +633,7 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={sizingForm.hips}
                   onChange={(e) => setSizingForm({ ...sizingForm, hips: e.target.value })}
+                  placeholder={'36"'}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2 py-1.5 text-xs text-center text-[#141312]"
                 />
               </div>
@@ -630,6 +645,7 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={sizingForm.height}
                   onChange={(e) => setSizingForm({ ...sizingForm, height: e.target.value })}
+                  placeholder={"5'6\""}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2 py-1.5 text-xs text-center text-[#141312]"
                 />
               </div>
@@ -654,19 +670,19 @@ export const ProfileView: React.FC = () => {
             <div className="grid grid-cols-4 gap-2 text-center text-xs">
               <div className="bg-[#FAF9F6] p-2 rounded-lg border border-[#E8E4DF]">
                 <span className="text-[9px] text-[#948E88] uppercase block">Bust</span>
-                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.bust}</span>
+                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.bust || '—'}</span>
               </div>
               <div className="bg-[#FAF9F6] p-2 rounded-lg border border-[#E8E4DF]">
                 <span className="text-[9px] text-[#948E88] uppercase block">Waist</span>
-                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.waist}</span>
+                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.waist || '—'}</span>
               </div>
               <div className="bg-[#FAF9F6] p-2 rounded-lg border border-[#E8E4DF]">
                 <span className="text-[9px] text-[#948E88] uppercase block">Hips</span>
-                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.hips}</span>
+                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.hips || '—'}</span>
               </div>
               <div className="bg-[#FAF9F6] p-2 rounded-lg border border-[#E8E4DF]">
                 <span className="text-[9px] text-[#948E88] uppercase block">Height</span>
-                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.height}</span>
+                <span className="font-medium text-[#141312] mt-0.5 block">{sizingForm.height || '—'}</span>
               </div>
             </div>
           </div>
@@ -745,7 +761,7 @@ export const ProfileView: React.FC = () => {
           className="w-full py-2 text-xs text-[#948E88] hover:text-[#B91C1C] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Demo Data & Initial Orders</span>
+          <span>Clear Local Bag & Saved Session</span>
         </button>
       </div>
 

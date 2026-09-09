@@ -233,32 +233,26 @@ export const CheckoutModal: React.FC = () => {
   const [copiedAccount, setCopiedAccount] = useState(false);
 
   // Shipping form state
-  const [fullName, setFullName] = useState('Beatriz Zobel-de Ayala');
-  const [mobileNumber, setMobileNumber] = useState('+63 917 554 9912');
-  const [email, setEmail] = useState('beatriz.ayala@luxemail.ph');
-  const [deliveryAddress, setDeliveryAddress] = useState(
-    'Unit 38B, Pacific Plaza Towers, 4th Avenue, Bonifacio Global City'
+  const [fullName, setFullName] = useState(userProfile?.shippingDetails?.fullName || currentUser?.displayName || '');
+  const [mobileNumber, setMobileNumber] = useState(userProfile?.shippingDetails?.mobileNumber || userProfile?.phoneNumber || '');
+  const [email, setEmail] = useState(userProfile?.shippingDetails?.email || currentUser?.email || '');
+  const [deliveryAddress, setDeliveryAddress] = useState(userProfile?.shippingDetails?.deliveryAddress || '');
+  const [landmarkNotes, setLandmarkNotes] = useState(userProfile?.shippingDetails?.landmarkNotes || '');
+  const [province, setProvince] = useState(userProfile?.shippingDetails?.province || 'Metro Manila');
+  const [city, setCity] = useState(userProfile?.shippingDetails?.city || 'Taguig City (BGC)');
+  const [postalCode, setPostalCode] = useState(userProfile?.shippingDetails?.postalCode || '1634');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
+    (userProfile?.shippingDetails?.deliveryMethod as DeliveryMethod) || 'lalamove'
   );
-  const [landmarkNotes, setLandmarkNotes] = useState(
-    'Leave with the 24/7 concierge lobby front desk under my name'
-  );
-  const [province, setProvince] = useState('Metro Manila');
-  const [city, setCity] = useState('Taguig City (BGC)');
-  const [postalCode, setPostalCode] = useState('1634');
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('lalamove');
 
   // KYC state
-  const [idType, setIdType] = useState<GovernmentIdType>('Philippine Passport');
-  const [frontIdImage, setFrontIdImage] = useState<string>(
-    'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80'
+  const [idType, setIdType] = useState<GovernmentIdType>(
+    (userProfile?.kycDetails?.idType as GovernmentIdType) || 'Philippine Passport'
   );
-  const [backIdImage, setBackIdImage] = useState<string>(
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80'
-  );
-  const [selfieWithIdImage, setSelfieWithIdImage] = useState<string>(
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-  );
-  const [idNumber, setIdNumber] = useState<string>('P8920412B');
+  const [frontIdImage, setFrontIdImage] = useState<string>(userProfile?.kycDetails?.frontIdImage || '');
+  const [backIdImage, setBackIdImage] = useState<string>(userProfile?.kycDetails?.backIdImage || '');
+  const [selfieWithIdImage, setSelfieWithIdImage] = useState<string>(userProfile?.kycDetails?.selfieWithIdImage || '');
+  const [idNumber, setIdNumber] = useState<string>(userProfile?.kycDetails?.idNumber || '');
 
   // Populate from userProfile if available
   useEffect(() => {
@@ -312,10 +306,8 @@ export const CheckoutModal: React.FC = () => {
   // 3. Payment state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('gcash');
   const [selectedBank, setSelectedBank] = useState<BankName>('BDO');
-  const [referenceNumber, setReferenceNumber] = useState<string>('8204910293812');
-  const [receiptImage, setReceiptImage] = useState<string>(
-    'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80'
-  );
+  const [referenceNumber, setReferenceNumber] = useState<string>('');
+  const [receiptImage, setReceiptImage] = useState<string>('');
 
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});

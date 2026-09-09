@@ -157,9 +157,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'atelier_rentals_cart_v1';
-const ORDERS_STORAGE_KEY = 'atelier_rentals_orders_v1';
-const WISHLIST_STORAGE_KEY = 'atelier_rentals_wishlist_v1';
+const CART_STORAGE_KEY = 'atelier_rentals_cart_v2';
+const ORDERS_STORAGE_KEY = 'atelier_rentals_orders_v2';
+const WISHLIST_STORAGE_KEY = 'atelier_rentals_wishlist_v2';
 const ADMIN_AUTH_STORAGE_KEY = 'atelier_admin_2fa_auth_v1';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -575,8 +575,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Wishlist state with localStorage
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
+      localStorage.removeItem('atelier_rentals_wishlist_v1');
       const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed: string[] = JSON.parse(saved);
+      const demoIds = ['garment-1', 'garment-2', 'garment-3', 'garment-4', 'garment-5', 'garment-6', 'garment-7', 'garment-8'];
+      return parsed.filter((id) => !demoIds.includes(id));
     } catch {
       return [];
     }
@@ -585,8 +589,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Cart state with localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
+      localStorage.removeItem('atelier_rentals_cart_v1');
       const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed: CartItem[] = JSON.parse(saved);
+      const demoIds = ['garment-1', 'garment-2', 'garment-3', 'garment-4', 'garment-5', 'garment-6', 'garment-7', 'garment-8'];
+      return parsed.filter(
+        (item) =>
+          item &&
+          item.garment &&
+          item.garment.name &&
+          !demoIds.includes(item.garment.id) &&
+          !demoIds.includes(item.id)
+      );
     } catch {
       return [];
     }
@@ -595,8 +610,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Orders state with localStorage
   const [orders, setOrders] = useState<RentalOrder[]>(() => {
     try {
+      localStorage.removeItem('atelier_rentals_orders_v1');
       const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed: RentalOrder[] = JSON.parse(saved);
+      return parsed;
     } catch {
       return [];
     }
@@ -805,13 +823,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetAllData = () => {
-    setOrders(INITIAL_MOCK_ORDERS);
+    setOrders([]);
     setCart([]);
-    setWishlist(['garment-1', 'garment-3']);
+    setWishlist([]);
     localStorage.removeItem(CART_STORAGE_KEY);
     localStorage.removeItem(ORDERS_STORAGE_KEY);
     localStorage.removeItem(WISHLIST_STORAGE_KEY);
-    showToast('Demo data reset to initial showcase state');
+    localStorage.removeItem('atelier_rentals_cart_v1');
+    localStorage.removeItem('atelier_rentals_orders_v1');
+    localStorage.removeItem('atelier_rentals_wishlist_v1');
+    showToast('Local bag and saved session cleared');
   };
 
   return (
