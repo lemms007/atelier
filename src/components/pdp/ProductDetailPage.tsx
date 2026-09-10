@@ -627,14 +627,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] shadow-xs overflow-hidden">
               {/* Header: patterned after Add to Bag dialog */}
               <div className="p-4 sm:p-5 border-b border-[#E8E4DF] bg-[#FAF9F6]/60">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
-                    Rental Options
-                  </h3>
-                  <span className="text-[10px] text-[#5C5854] font-medium bg-white px-2 py-0.5 rounded border border-[#E8E4DF]">
-                    Size {selectedSize} · {selectedColor} · {durationDays}D
-                  </span>
-                </div>
+                <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
+                  Rental Options
+                </h3>
               </div>
 
               {/* Step-by-Step Configuration Body */}

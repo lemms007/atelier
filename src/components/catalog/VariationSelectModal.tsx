@@ -322,13 +322,10 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
             <span className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[#80232F] block">
               {productSource}
             </span>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="mt-0.5">
               <h3 className="font-serif text-lg sm:text-xl font-semibold text-[#141312]">
                 Rental Options
               </h3>
-              <span className="text-[10px] text-[#5C5854] font-medium bg-white px-2 py-0.5 rounded border border-[#E8E4DF]">
-                Size {selectedSize} · {activeOpt?.name || 'Standard'} · {durationDays}D
-              </span>
             </div>
           </div>
           <button
