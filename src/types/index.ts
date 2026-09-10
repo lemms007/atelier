@@ -235,6 +235,9 @@ export interface Admin2FAEmail {
 }
 
 export interface ShippingDetails {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
   fullName: string;
   mobileNumber: string;
   email: string;
@@ -283,6 +286,9 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   photoURL?: string;
   phoneNumber?: string;
   isRegistered: boolean;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RentalOrder, OrderStatus } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { formatPHP, formatDisplayDateShort } from '../../utils/formatters';
+import { formatPHP, formatDisplayDateShort, formatFullName } from '../../utils/formatters';
 import { ConciergeModal } from '../common/ConciergeModal';
 import {
   Clock,
@@ -261,7 +261,9 @@ export const OrderTrackingDetail: React.FC<OrderTrackingDetailProps> = ({
             <Truck className="w-3.5 h-3.5 text-[#141312] stroke-[1.5]" />
             <span>Delivery Destination</span>
           </h4>
-          <p className="font-medium text-[#141312]">{order.shipping.fullName}</p>
+          <p className="font-medium text-[#141312]">
+            {formatFullName(order.shipping.firstName, order.shipping.middleName, order.shipping.lastName) || order.shipping.fullName}
+          </p>
           <p className="text-[#5C5854]">{order.shipping.mobileNumber}</p>
           <p className="text-[#5C5854] leading-relaxed">{order.shipping.deliveryAddress}</p>
           {order.shipping.landmarkNotes && (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { RentalOrder, OrderStatus } from '../../types';
-import { formatPHP, formatDisplayDateShort } from '../../utils/formatters';
+import { formatPHP, formatDisplayDateShort, formatFullName } from '../../utils/formatters';
 import { AdminInventoryView } from './AdminInventoryView';
 import { AdminLedgerView } from './AdminLedgerView';
 import {
@@ -205,7 +205,9 @@ export const AdminOrdersPortal: React.FC = () => {
                     </div>
 
                     <div className="mt-2 text-xs text-[#5C5854] space-y-0.5">
-                      <p className="font-medium text-[#141312]">{order.shipping.fullName}</p>
+                      <p className="font-medium text-[#141312]">
+                        {formatFullName(order.shipping.firstName, order.shipping.middleName, order.shipping.lastName) || order.shipping.fullName}
+                      </p>
                       <p>{order.items.length} Garment(s) • Total: {formatPHP(order.grandTotal)}</p>
                       <p className="text-[10px] text-[#948E88]">
                         Payment: <strong className="uppercase font-medium text-[#5C5854]">{order.payment.method}</strong> (Ref: {order.payment.referenceNumber})
@@ -227,8 +229,15 @@ export const AdminOrdersPortal: React.FC = () => {
                     Inspecting Verification Record
                   </span>
                   <h2 className="font-serif text-base font-semibold text-[#141312]">
-                    {selectedOrder.id} — {selectedOrder.shipping.fullName}
+                    {selectedOrder.id} — {formatFullName(selectedOrder.shipping.firstName, selectedOrder.shipping.middleName, selectedOrder.shipping.lastName) || selectedOrder.shipping.fullName}
                   </h2>
+                  {(selectedOrder.shipping.firstName || selectedOrder.shipping.lastName) && (
+                    <p className="text-[11px] text-[#78716C]">
+                      First: <span className="font-medium text-[#141312]">{selectedOrder.shipping.firstName || '—'}</span>
+                      {selectedOrder.shipping.middleName ? <> • Middle: <span className="font-medium text-[#141312]">{selectedOrder.shipping.middleName}</span></> : null}
+                      {' '}• Last: <span className="font-medium text-[#141312]">{selectedOrder.shipping.lastName || '—'}</span>
+                    </p>
+                  )}
                   <p className="text-[11px] text-[#5C5854]">
                     Submitted {new Date(selectedOrder.createdAt).toLocaleDateString()} at {new Date(selectedOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>

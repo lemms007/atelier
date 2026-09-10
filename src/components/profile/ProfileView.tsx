@@ -22,6 +22,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { GovernmentIdType, GarmentSize } from '../../types';
+import { parseFullName, formatFullName } from '../../utils/formatters';
 
 export const ProfileView: React.FC = () => {
   const {
@@ -47,8 +48,18 @@ export const ProfileView: React.FC = () => {
   const [isEditingSizing, setIsEditingSizing] = useState(false);
   const [isEditingKYC, setIsEditingKYC] = useState(false);
 
-  // Shipping Form
+  // Shipping Form with First, Middle, and Last Name
+  const initialNameParts = parseFullName(
+    userProfile?.shippingDetails?.fullName ||
+    userProfile?.displayName ||
+    currentUser?.displayName ||
+    ''
+  );
+
   const [shippingForm, setShippingForm] = useState({
+    firstName: userProfile?.shippingDetails?.firstName || userProfile?.firstName || initialNameParts.firstName,
+    middleName: userProfile?.shippingDetails?.middleName ?? userProfile?.middleName ?? initialNameParts.middleName,
+    lastName: userProfile?.shippingDetails?.lastName || userProfile?.lastName || initialNameParts.lastName,
     fullName: userProfile?.shippingDetails?.fullName || userProfile?.displayName || currentUser?.displayName || '',
     mobileNumber: userProfile?.shippingDetails?.mobileNumber || userProfile?.phoneNumber || '',
     email: userProfile?.shippingDetails?.email || userProfile?.email || currentUser?.email || '',
@@ -81,7 +92,11 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     if (userProfile) {
       if (userProfile.shippingDetails) {
+        const parsed = parseFullName(userProfile.shippingDetails.fullName || userProfile.displayName || '');
         setShippingForm({
+          firstName: userProfile.shippingDetails.firstName || userProfile.firstName || parsed.firstName,
+          middleName: userProfile.shippingDetails.middleName ?? userProfile.middleName ?? parsed.middleName,
+          lastName: userProfile.shippingDetails.lastName || userProfile.lastName || parsed.lastName,
           fullName: userProfile.shippingDetails.fullName || userProfile.displayName || '',
           mobileNumber: userProfile.shippingDetails.mobileNumber || '',
           email: userProfile.shippingDetails.email || userProfile.email || '',
@@ -114,13 +129,31 @@ export const ProfileView: React.FC = () => {
   }, [userProfile]);
 
   const handleSaveShipping = async () => {
+    const combinedFullName = formatFullName(
+      shippingForm.firstName,
+      shippingForm.middleName,
+      shippingForm.lastName
+    ) || shippingForm.fullName;
+
     await updateUserProfile({
+      firstName: shippingForm.firstName.trim(),
+      middleName: shippingForm.middleName ? shippingForm.middleName.trim() : undefined,
+      lastName: shippingForm.lastName.trim(),
+      displayName: combinedFullName || userProfile?.displayName || 'Atelier Renter',
       shippingDetails: {
         ...shippingForm,
+        firstName: shippingForm.firstName.trim(),
+        middleName: shippingForm.middleName ? shippingForm.middleName.trim() : undefined,
+        lastName: shippingForm.lastName.trim(),
+        fullName: combinedFullName,
         deliveryMethod: 'lalamove',
         shippingFee: 0,
       },
     });
+    setShippingForm((prev) => ({
+      ...prev,
+      fullName: combinedFullName,
+    }));
     setIsEditingShipping(false);
   };
 
@@ -322,27 +355,71 @@ export const ProfileView: React.FC = () => {
 
         {isEditingShipping ? (
           <div className="space-y-3 animate-fadeIn">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
               <div>
                 <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
-                  Full Name
+                  First Name *
                 </label>
                 <input
+                  id="profile-shipping-first-name"
                   type="text"
-                  value={shippingForm.fullName}
-                  onChange={(e) => setShippingForm({ ...shippingForm, fullName: e.target.value })}
+                  value={shippingForm.firstName}
+                  onChange={(e) => setShippingForm({ ...shippingForm, firstName: e.target.value })}
+                  placeholder="e.g. Maria Clara"
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
                 />
               </div>
               <div>
                 <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
+                  Middle Name <span className="text-[#948E88] font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  id="profile-shipping-middle-name"
+                  type="text"
+                  value={shippingForm.middleName}
+                  onChange={(e) => setShippingForm({ ...shippingForm, middleName: e.target.value })}
+                  placeholder="e.g. Santos"
+                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
+                  Last Name *
+                </label>
+                <input
+                  id="profile-shipping-last-name"
+                  type="text"
+                  value={shippingForm.lastName}
+                  onChange={(e) => setShippingForm({ ...shippingForm, lastName: e.target.value })}
+                  placeholder="e.g. Dela Cruz"
+                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div>
+                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
                   Mobile Number
                 </label>
                 <input
+                  id="profile-shipping-mobile"
                   type="text"
                   value={shippingForm.mobileNumber}
                   onChange={(e) => setShippingForm({ ...shippingForm, mobileNumber: e.target.value })}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
+                  Email Address
+                </label>
+                <input
+                  id="profile-shipping-email"
+                  type="email"
+                  value={shippingForm.email}
+                  onChange={(e) => setShippingForm({ ...shippingForm, email: e.target.value })}
+                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
                 />
               </div>
             </div>
@@ -417,9 +494,19 @@ export const ProfileView: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-1.5 text-xs text-[#5C5854]">
-            {shippingForm.fullName || shippingForm.deliveryAddress ? (
+            {shippingForm.firstName || shippingForm.lastName || shippingForm.fullName || shippingForm.deliveryAddress ? (
               <>
-                <p className="font-medium text-[#141312]">{shippingForm.fullName} {shippingForm.mobileNumber ? `• ${shippingForm.mobileNumber}` : ''}</p>
+                <p className="font-medium text-[#141312]">
+                  {formatFullName(shippingForm.firstName, shippingForm.middleName, shippingForm.lastName) || shippingForm.fullName}{' '}
+                  {shippingForm.mobileNumber ? `• ${shippingForm.mobileNumber}` : ''}
+                </p>
+                {(shippingForm.firstName || shippingForm.lastName) && (
+                  <p className="text-[11px] text-[#78716C]">
+                    Given: <span className="font-medium text-[#141312]">{shippingForm.firstName || '—'}</span>
+                    {shippingForm.middleName ? <> • Middle: <span className="font-medium text-[#141312]">{shippingForm.middleName}</span></> : null}
+                    {' '}• Surname: <span className="font-medium text-[#141312]">{shippingForm.lastName || '—'}</span>
+                  </p>
+                )}
                 <p>{[shippingForm.deliveryAddress, shippingForm.city, shippingForm.province, shippingForm.postalCode].filter(Boolean).join(', ')}</p>
                 {shippingForm.landmarkNotes && (
                   <p className="text-[11px] text-[#78716C] italic">Note: {shippingForm.landmarkNotes}</p>

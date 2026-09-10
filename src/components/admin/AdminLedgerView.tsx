@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { formatPHP } from '../../utils/formatters';
+import { formatPHP, formatFullName } from '../../utils/formatters';
 import { Landmark, ShieldCheck, CheckCircle2, ArrowUpRight, DollarSign, Wallet } from 'lucide-react';
 
 export const AdminLedgerView: React.FC = () => {
@@ -152,7 +152,9 @@ export const AdminLedgerView: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-3">
-                      <p className="font-medium text-[#141312]">{order.shipping.fullName}</p>
+                      <p className="font-medium text-[#141312]">
+                        {formatFullName(order.shipping.firstName, order.shipping.middleName, order.shipping.lastName) || order.shipping.fullName}
+                      </p>
                       <p className="text-[10px] text-[#948E88]">{order.shipping.mobileNumber}</p>
                     </td>
 

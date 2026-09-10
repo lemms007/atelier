@@ -13,6 +13,8 @@ import {
   formatPHP,
   formatPHMobile,
   isValidPHMobile,
+  parseFullName,
+  formatFullName,
 } from '../../utils/formatters';
 import { RentalAgreementModal } from './RentalAgreementModal';
 import {
@@ -232,8 +234,24 @@ export const CheckoutModal: React.FC = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
 
-  // Shipping form state
-  const [fullName, setFullName] = useState(userProfile?.shippingDetails?.fullName || currentUser?.displayName || '');
+  // Shipping form state: First, Middle, Last Name breakdown
+  const initialNameParts = parseFullName(
+    userProfile?.shippingDetails?.fullName ||
+    userProfile?.displayName ||
+    currentUser?.displayName ||
+    ''
+  );
+
+  const [firstName, setFirstName] = useState(
+    userProfile?.shippingDetails?.firstName || userProfile?.firstName || initialNameParts.firstName
+  );
+  const [middleName, setMiddleName] = useState(
+    userProfile?.shippingDetails?.middleName ?? userProfile?.middleName ?? initialNameParts.middleName
+  );
+  const [lastName, setLastName] = useState(
+    userProfile?.shippingDetails?.lastName || userProfile?.lastName || initialNameParts.lastName
+  );
+
   const [mobileNumber, setMobileNumber] = useState(userProfile?.shippingDetails?.mobileNumber || userProfile?.phoneNumber || '');
   const [email, setEmail] = useState(userProfile?.shippingDetails?.email || currentUser?.email || '');
   const [deliveryAddress, setDeliveryAddress] = useState(userProfile?.shippingDetails?.deliveryAddress || '');
@@ -258,7 +276,10 @@ export const CheckoutModal: React.FC = () => {
   useEffect(() => {
     if (userProfile) {
       if (userProfile.shippingDetails) {
-        if (userProfile.shippingDetails.fullName) setFullName(userProfile.shippingDetails.fullName);
+        const parsed = parseFullName(userProfile.shippingDetails.fullName || userProfile.displayName || '');
+        setFirstName(userProfile.shippingDetails.firstName || userProfile.firstName || parsed.firstName);
+        setMiddleName(userProfile.shippingDetails.middleName ?? userProfile.middleName ?? parsed.middleName);
+        setLastName(userProfile.shippingDetails.lastName || userProfile.lastName || parsed.lastName);
         if (userProfile.shippingDetails.mobileNumber) setMobileNumber(userProfile.shippingDetails.mobileNumber);
         if (userProfile.shippingDetails.email) setEmail(userProfile.shippingDetails.email);
         if (userProfile.shippingDetails.deliveryAddress) setDeliveryAddress(userProfile.shippingDetails.deliveryAddress);
@@ -268,7 +289,10 @@ export const CheckoutModal: React.FC = () => {
         if (userProfile.shippingDetails.postalCode) setPostalCode(userProfile.shippingDetails.postalCode);
         if (userProfile.shippingDetails.deliveryMethod) setDeliveryMethod(userProfile.shippingDetails.deliveryMethod as any);
       } else if (currentUser) {
-        if (currentUser.displayName) setFullName(currentUser.displayName);
+        const parsed = parseFullName(currentUser.displayName || '');
+        setFirstName(parsed.firstName);
+        setMiddleName(parsed.middleName);
+        setLastName(parsed.lastName);
         if (currentUser.email) setEmail(currentUser.email);
       }
 
@@ -321,7 +345,8 @@ export const CheckoutModal: React.FC = () => {
   // Step 1 Validation
   const validateStep1 = (): boolean => {
     const errs: { [key: string]: string } = {};
-    if (!fullName.trim()) errs.fullName = 'Full Name is required';
+    if (!firstName.trim()) errs.firstName = 'First name is required';
+    if (!lastName.trim()) errs.lastName = 'Last name is required';
     if (!isValidPHMobile(mobileNumber)) {
       errs.mobileNumber = 'Valid mobile # (+63 9XX XXX XXXX) required';
     }
@@ -370,8 +395,13 @@ export const CheckoutModal: React.FC = () => {
   const handleSubmitBooking = () => {
     if (!validateStep3()) return;
 
+    const constructedFullName = formatFullName(firstName, middleName, lastName);
+
     const shippingData: ShippingDetails = {
-      fullName,
+      firstName: firstName.trim(),
+      middleName: middleName ? middleName.trim() : undefined,
+      lastName: lastName.trim(),
+      fullName: constructedFullName,
       mobileNumber,
       email,
       deliveryAddress,
@@ -512,24 +542,68 @@ export const CheckoutModal: React.FC = () => {
                   <span>Renter & Delivery Details</span>
                 </h3>
 
-                {/* Full Name */}
+                {/* Legal Name Breakdown: First, Middle, Last */}
                 <div>
-                  <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    id="input-renter-name"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Maria Clara Santos"
-                    className={`w-full bg-[#FAF9F6] border ${
-                      errors.fullName ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
-                    } rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
-                  />
-                  {errors.fullName && (
-                    <p className="text-[10px] text-[#B91C1C] mt-1">{errors.fullName}</p>
-                  )}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854]">
+                      Renter Legal Name (as indicated on Government ID) *
+                    </label>
+                    <span className="text-[9px] text-[#948E88]">First, Middle, Last</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                    <div className="sm:col-span-5">
+                      <label className="text-[9px] font-medium text-[#78716C] uppercase block mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        id="input-renter-first-name"
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="e.g. Maria Clara"
+                        className={`w-full bg-[#FAF9F6] border ${
+                          errors.firstName ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                        } rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
+                      />
+                      {errors.firstName && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.firstName}</p>
+                      )}
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="text-[9px] font-medium text-[#78716C] uppercase block mb-1">
+                        Middle Name <span className="text-[#948E88] font-normal lowercase">(optional)</span>
+                      </label>
+                      <input
+                        id="input-renter-middle-name"
+                        type="text"
+                        value={middleName}
+                        onChange={(e) => setMiddleName(e.target.value)}
+                        placeholder="e.g. Santos"
+                        className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="text-[9px] font-medium text-[#78716C] uppercase block mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        id="input-renter-last-name"
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="e.g. Dela Cruz"
+                        className={`w-full bg-[#FAF9F6] border ${
+                          errors.lastName ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                        } rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
+                      />
+                      {errors.lastName && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.lastName}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Mobile & Email in grid */}

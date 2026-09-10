@@ -8,6 +8,7 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 import { db } from '../firebase';
 import { UserProfile, ShippingDetails, KYCData, UserMeasurements } from '../types';
+import { parseFullName } from '../utils/formatters';
 
 const USER_PROFILE_STORAGE_KEY_PREFIX = 'atelier_user_profile_v1_';
 
@@ -111,15 +112,36 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
   const userRef = doc(db, 'users', user.uid);
   const snap = await getDoc(userRef);
 
+  const parsedGoogleName = parseFullName(user.displayName || '');
+
   if (snap.exists()) {
     const existing = snap.data() as UserProfile;
+    const existingParsed = parseFullName(existing.shippingDetails?.fullName || existing.displayName || user.displayName || '');
     const updated: UserProfile = {
       ...existing,
       email: user.email || existing.email,
       displayName: user.displayName || existing.displayName,
+      firstName: existing.firstName || existing.shippingDetails?.firstName || parsedGoogleName.firstName || existingParsed.firstName,
+      middleName: existing.middleName || existing.shippingDetails?.middleName || parsedGoogleName.middleName || existingParsed.middleName,
+      lastName: existing.lastName || existing.shippingDetails?.lastName || parsedGoogleName.lastName || existingParsed.lastName,
       photoURL: user.photoURL || existing.photoURL,
       lastLoginAt: new Date().toISOString(),
       isRegistered: true,
+      shippingDetails: {
+        ...existing.shippingDetails,
+        firstName: existing.shippingDetails?.firstName || existing.firstName || parsedGoogleName.firstName || existingParsed.firstName,
+        middleName: existing.shippingDetails?.middleName || existing.middleName || parsedGoogleName.middleName || existingParsed.middleName,
+        lastName: existing.shippingDetails?.lastName || existing.lastName || parsedGoogleName.lastName || existingParsed.lastName,
+        fullName: existing.shippingDetails?.fullName || existing.displayName || user.displayName || '',
+        email: existing.shippingDetails?.email || user.email || '',
+        mobileNumber: existing.shippingDetails?.mobileNumber || user.phoneNumber || '',
+        deliveryAddress: existing.shippingDetails?.deliveryAddress || '',
+        city: existing.shippingDetails?.city || '',
+        province: existing.shippingDetails?.province || '',
+        postalCode: existing.shippingDetails?.postalCode || '',
+        deliveryMethod: existing.shippingDetails?.deliveryMethod || 'lalamove',
+        shippingFee: existing.shippingDetails?.shippingFee || 0,
+      },
     };
     await setDoc(userRef, updated, { merge: true });
     setCachedUserProfile(updated);
@@ -131,6 +153,9 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
     uid: user.uid,
     email: user.email || '',
     displayName: user.displayName || 'Atelier Renter',
+    firstName: parsedGoogleName.firstName,
+    middleName: parsedGoogleName.middleName,
+    lastName: parsedGoogleName.lastName,
     photoURL: user.photoURL || undefined,
     phoneNumber: user.phoneNumber || undefined,
     isRegistered: true,
@@ -138,6 +163,9 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
     createdAt: new Date().toISOString(),
     lastLoginAt: new Date().toISOString(),
     shippingDetails: {
+      firstName: parsedGoogleName.firstName,
+      middleName: parsedGoogleName.middleName,
+      lastName: parsedGoogleName.lastName,
       fullName: user.displayName || '',
       email: user.email || '',
       mobileNumber: user.phoneNumber || '',
@@ -146,6 +174,7 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
       province: '',
       postalCode: '',
       deliveryMethod: 'lalamove',
+      shippingFee: 0,
     },
     measurements: {
       primarySize: 'S',

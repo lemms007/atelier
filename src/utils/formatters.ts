@@ -67,6 +67,55 @@ export const isValidPHMobile = (formattedOrRaw: string): boolean => {
   return false;
 };
 
+export interface ParsedFullName {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+}
+
+/**
+ * Break down a single full name string into First Name, Middle Name, and Last Name
+ */
+export const parseFullName = (fullName?: string): ParsedFullName => {
+  if (!fullName) {
+    return { firstName: '', middleName: '', lastName: '' };
+  }
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return { firstName: '', middleName: '', lastName: '' };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], middleName: '', lastName: '' };
+  }
+  if (parts.length === 2) {
+    return { firstName: parts[0], middleName: '', lastName: parts[1] };
+  }
+  if (parts.length === 3) {
+    return { firstName: parts[0], middleName: parts[1], lastName: parts[2] };
+  }
+  // 4 or more words (e.g. "Maria Clara Santos De La Cruz" or "Jose Maria Dela Cruz")
+  // First word is First Name, Last word is Last Name, middle words are Middle Name
+  return {
+    firstName: parts[0],
+    middleName: parts.slice(1, -1).join(' '),
+    lastName: parts[parts.length - 1],
+  };
+};
+
+/**
+ * Combines First Name, Middle Name (optional), and Last Name into a single Full Name string
+ */
+export const formatFullName = (
+  firstName?: string,
+  middleName?: string,
+  lastName?: string
+): string => {
+  const list = [firstName, middleName, lastName]
+    .map((s) => s?.trim())
+    .filter((s): s is string => Boolean(s));
+  return list.join(' ');
+};
+
 export const calculateDaysBetween = (startStr: string, endStr: string): number => {
   if (!startStr || !endStr) return 0;
   const start = new Date(startStr);
