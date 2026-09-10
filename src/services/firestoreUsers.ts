@@ -152,7 +152,7 @@ export async function syncUserProfileOnGoogleLogin(user: FirebaseUser): Promise<
   const newProfile: UserProfile = {
     uid: user.uid,
     email: user.email || '',
-    displayName: user.displayName || 'Atelier Renter',
+    displayName: user.displayName || 'Sinta Renter',
     firstName: parsedGoogleName.firstName,
     middleName: parsedGoogleName.middleName,
     lastName: parsedGoogleName.lastName,

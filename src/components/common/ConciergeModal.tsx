@@ -16,14 +16,14 @@ export const ConciergeModal: React.FC<ConciergeModalProps> = ({
   const { showToast } = useApp();
   const [message, setMessage] = React.useState(
     orderReference
-      ? `Hello Atelier Manila Concierge! I would like to inquire regarding my rental order #${orderReference}.`
-      : 'Hello Atelier Manila! I would like assistance with sizing and date reservation.'
+      ? `Hello Sinta Wardrobe Rental Concierge! I would like to inquire regarding my rental order #${orderReference}.`
+      : 'Hello Sinta Wardrobe Rental! I would like assistance with sizing and date reservation.'
   );
 
   if (!isOpen) return null;
 
   const handleSendMessage = (channel: 'whatsapp' | 'viber') => {
-    showToast(`Connecting to Atelier Concierge via ${channel === 'whatsapp' ? 'WhatsApp' : 'Viber'}...`);
+    showToast(`Connecting to Sinta Concierge via ${channel === 'whatsapp' ? 'WhatsApp' : 'Viber'}...`);
     setTimeout(() => {
       onClose();
     }, 1000);
@@ -35,7 +35,7 @@ export const ConciergeModal: React.FC<ConciergeModalProps> = ({
         {/* Header */}
         <div className="bg-[#141312] text-white p-4 flex items-center justify-between">
           <div>
-            <h3 className="font-serif text-sm font-semibold">Atelier Concierge</h3>
+            <h3 className="font-serif text-sm font-semibold">Sinta Concierge</h3>
             <p className="text-[11px] text-[#FAF9F6]/70">Available 9:00 AM – 9:00 PM PHT</p>
           </div>
           <button

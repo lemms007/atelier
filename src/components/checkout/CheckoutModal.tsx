@@ -425,7 +425,7 @@ export const CheckoutModal: React.FC = () => {
     const paymentData: PaymentData = {
       method: paymentMethod,
       bankName: paymentMethod === 'bank_transfer' ? selectedBank : undefined,
-      accountName: paymentMethod === 'gcash' ? 'ATELIER LUXE COUTURE INC' : `${selectedBank} Atelier Manila Inc.`,
+      accountName: paymentMethod === 'gcash' ? 'SINTA WARDROBE RENTAL INC' : `${selectedBank} Sinta Wardrobe Inc.`,
       accountNumber: paymentMethod === 'gcash' ? '0917 888 2345' : '1098 2341 5560',
       referenceNumber,
       receiptImage,
@@ -466,7 +466,7 @@ export const CheckoutModal: React.FC = () => {
         <div className="bg-[#FFFFFF] px-5 py-3.5 border-b border-[#E8E4DF] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-serif text-base font-semibold text-[#141312]">
-              Atelier Checkout
+              Sinta Wardrobe Rental Checkout
             </span>
           </div>
 
@@ -1159,7 +1159,7 @@ export const CheckoutModal: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-[#5C5854]">Account Name:</span>
                         <span className="font-medium text-[#141312]">
-                          ATELIER LUXE MANILA INC.
+                          SINTA WARDROBE RENTAL INC.
                         </span>
                       </div>
                       <div className="flex items-center justify-between">

@@ -139,7 +139,7 @@ export const ProfileView: React.FC = () => {
       firstName: shippingForm.firstName.trim(),
       middleName: shippingForm.middleName ? shippingForm.middleName.trim() : undefined,
       lastName: shippingForm.lastName.trim(),
-      displayName: combinedFullName || userProfile?.displayName || 'Atelier Renter',
+      displayName: combinedFullName || userProfile?.displayName || 'Sinta Renter',
       shippingDetails: {
         ...shippingForm,
         firstName: shippingForm.firstName.trim(),
@@ -289,7 +289,7 @@ export const ProfileView: React.FC = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-serif text-base font-semibold text-[#141312] truncate">
-                  {userProfile?.displayName || currentUser.displayName || 'Atelier Renter'}
+                  {userProfile?.displayName || currentUser.displayName || 'Sinta Renter'}
                 </h2>
                 <span className="bg-[#FAF9F6] border border-[#E8E4DF] text-[#141312] text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                   <Award className="w-3 h-3 text-[#141312]" />
@@ -780,7 +780,7 @@ export const ProfileView: React.FC = () => {
       <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] p-4 space-y-3">
         <h3 className="font-serif text-xs font-semibold text-[#141312] flex items-center gap-1.5 border-b border-[#E8E4DF] pb-2.5">
           <HelpCircle className="w-3.5 h-3.5 text-[#141312] stroke-[1.5]" />
-          <span>Atelier Rental FAQs & Policy</span>
+          <span>Sinta Wardrobe Rental FAQs & Policy</span>
         </h3>
 
         <div className="divide-y divide-[#E8E4DF]">
@@ -813,7 +813,7 @@ export const ProfileView: React.FC = () => {
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#141312]" />
             <h3 className="font-serif text-xs font-semibold text-[#141312]">
-              Atelier Operations & Verification Portal
+              Sinta Operations & Verification Portal
             </h3>
           </div>
           <span className="text-[9px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-1.5 py-0.5 rounded font-mono uppercase">
@@ -840,7 +840,7 @@ export const ProfileView: React.FC = () => {
           className="w-full h-10 bg-[#141312] hover:bg-[#2A2725] text-white font-medium text-xs rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
-          <span>Chat with Manila Atelier Concierge</span>
+          <span>Chat with Sinta Concierge</span>
         </button>
 
         <button

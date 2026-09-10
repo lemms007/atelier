@@ -426,7 +426,7 @@ export const AdminInventoryView: React.FC = () => {
       const payload: Garment = {
         id: gId,
         name: newGarment.name || 'Couture Piece',
-        designer: newGarment.designer || 'Atelier Manila',
+        designer: newGarment.designer || 'Sinta Wardrobe',
         category: newGarment.category as any || 'Gala & Black Tie',
         retailValue: Number(newGarment.retailValue) || 65000,
         basePrice4Days: basePrice,
@@ -2054,7 +2054,7 @@ export const AdminInventoryView: React.FC = () => {
                   {editingGarment.name || 'Untitled Garment'}
                 </p>
                 <p className="text-[10px] text-[#5C5854] truncate">
-                  {editingGarment.designer || 'Atelier Collection'} · {editingGarment.category}
+                  {editingGarment.designer || 'Sinta Collection'} · {editingGarment.category}
                 </p>
                 <div className="flex items-center gap-1.5 text-[9px] text-[#948E88] font-mono">
                   <span>ID: {editingGarment.id}</span>

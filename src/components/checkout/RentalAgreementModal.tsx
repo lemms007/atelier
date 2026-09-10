@@ -37,7 +37,7 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
         <div className="p-5 overflow-y-auto space-y-4 text-xs text-[#5C5854] leading-relaxed">
           <div className="bg-[#F5F3EF] p-3 rounded-lg border border-[#E8E4DF] flex items-center gap-2 text-[#141312] font-medium">
             <ShieldCheck className="w-4 h-4 text-[#141312] stroke-[1.5]" />
-            <span>Atelier Manila Certified Couture Hire Terms</span>
+            <span>Sinta Wardrobe Rental Certified Hire Terms</span>
           </div>
 
           <div>
@@ -54,7 +54,7 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
               2. Care & Prohibited Alterations
             </h4>
             <p>
-              Renters may NOT perform permanent alterations, hem cuts, pin adjustments with non-silk pins, iron on delicate organza, or attempt home washing. All garments are sanitized through our specialized atelier dry cleaning partners.
+              Renters may NOT perform permanent alterations, hem cuts, pin adjustments with non-silk pins, iron on delicate organza, or attempt home washing. All garments are sanitized through our specialized dry cleaning partners.
             </p>
           </div>
 
@@ -63,7 +63,7 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
               3. Minor Wear vs. Major Damage
             </h4>
             <p>
-              Standard wear (minor cosmetic hem dust, removable beverage splatters) is 100% covered by Atelier Insurance. Irreparable tears, severe burns, cigarette marks, or theft will forfeit the security deposit and may incur up to the full retail replacement value.
+              Standard wear (minor cosmetic hem dust, removable beverage splatters) is 100% covered by Sinta Insurance. Irreparable tears, severe burns, cigarette marks, or theft will forfeit the security deposit and may incur up to the full retail replacement value.
             </p>
           </div>
 

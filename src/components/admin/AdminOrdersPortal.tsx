@@ -78,7 +78,7 @@ export const AdminOrdersPortal: React.FC = () => {
     updateOrderStatus(
       orderId,
       'Approved & Ready for Dispatch',
-      adminNoteInput || 'KYC Government ID & Payment certified by Atelier Lead Inspector.'
+      adminNoteInput || 'KYC Government ID & Payment certified by Sinta Lead Inspector.'
     );
     setAdminNoteInput('');
   };

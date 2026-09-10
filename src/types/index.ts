@@ -294,7 +294,7 @@ export interface UserProfile {
   isRegistered: boolean;
   createdAt: string;
   lastLoginAt: string;
-  membershipTier?: 'Standard' | 'VIP Member' | 'Atelier Connoisseur';
+  membershipTier?: 'Standard' | 'VIP Member' | 'Sinta Connoisseur' | 'Atelier Connoisseur';
   shippingDetails?: Partial<ShippingDetails>;
   kycDetails?: Partial<KYCData>;
   measurements?: UserMeasurements;

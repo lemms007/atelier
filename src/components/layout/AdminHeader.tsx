@@ -29,7 +29,7 @@ export const AdminHeader: React.FC = () => {
       <div className="bg-[#1C1A18] text-[#948E88] text-[10px] tracking-widest font-medium py-1 px-4 sm:px-6 flex items-center justify-between uppercase border-b border-[#2A2725]">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
-          <span>Internal Atelier Backoffice Desk</span>
+          <span>Internal Sinta Wardrobe Backoffice Desk</span>
           <span className="hidden sm:inline text-[#5C5854]">•</span>
           <span className="hidden sm:inline text-[#22C55E]">2FA Active ({adminEmail})</span>
         </div>
@@ -61,10 +61,10 @@ export const AdminHeader: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-baseline gap-2">
               <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white">
-                ATELIER
+                SINTA
               </span>
               <span className="text-[9px] tracking-[0.24em] font-medium text-[#948E88] uppercase hidden sm:inline">
-                MANILA
+                WARDROBE RENTAL
               </span>
             </div>
             <div className="h-4 w-px bg-[#2A2725] hidden sm:block" />

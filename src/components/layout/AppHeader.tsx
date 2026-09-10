@@ -40,10 +40,10 @@ export const AppHeader: React.FC = () => {
           className="text-left group flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5 focus:outline-none cursor-pointer"
         >
           <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#141312] group-hover:opacity-75 transition-opacity">
-            ATELIER
+            SINTA
           </span>
           <span className="text-[8.5px] sm:text-[9.5px] tracking-wider font-medium text-[#78716C] uppercase">
-            BY LOVE HUMBLY SHOP AND CORSET BLOOMFIELDS
+            WARDROBE RENTAL
           </span>
         </button>
 

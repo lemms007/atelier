@@ -28,7 +28,7 @@ export const GoogleAuthModal: React.FC = () => {
         <div className="bg-[#FFFFFF] px-5 py-4 border-b border-[#E8E4DF] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-serif text-sm font-semibold tracking-wide text-[#141312] uppercase">
-              Atelier Renter Account
+              Sinta Renter Account
             </span>
             <span className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#80232F] px-2 py-0.5 rounded-full font-medium">
               Optional

@@ -86,7 +86,7 @@ export const AdminLedgerView: React.FC = () => {
             </div>
             <div className="flex justify-between text-[11px] text-[#948E88]">
               <span>Merchant Destination:</span>
-              <span className="font-mono">0917-889-4412 (Atelier Manila)</span>
+              <span className="font-mono">0917-889-4412 (Sinta Wardrobe Rental)</span>
             </div>
           </div>
         </div>

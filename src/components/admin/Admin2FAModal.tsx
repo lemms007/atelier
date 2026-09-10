@@ -231,7 +231,7 @@ export const Admin2FAModal: React.FC = () => {
               </div>
               <div>
                 <span className="text-[10px] tracking-[0.2em] uppercase text-[#948E88] font-medium block">
-                  Atelier Backoffice Security
+                  Sinta Backoffice Security
                 </span>
                 <h2 className="font-serif text-base font-semibold text-white">
                   Two-Factor Authentication
@@ -372,11 +372,11 @@ export const Admin2FAModal: React.FC = () => {
 
                   <div className="text-xs space-y-1">
                     <div className="flex justify-between text-[11px] text-[#5C5854]">
-                      <span>From: security@atelier-manila.ph</span>
+                      <span>From: security@sintawardrobe.ph</span>
                       <span>To: {admin2FAEmailPreview.to}</span>
                     </div>
                     <p className="text-[#141312] font-medium text-[11px] pt-0.5">
-                      Subject: Atelier Backoffice 6-Digit Access Code: {admin2FAEmailPreview.code}
+                      Subject: Sinta Backoffice 6-Digit Access Code: {admin2FAEmailPreview.code}
                     </p>
                   </div>
 

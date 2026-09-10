@@ -44,7 +44,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
           <div className="flex items-center gap-2">
             <Ruler className="w-4 h-4 text-[#8C2D3B]" />
             <h3 className="font-serif text-lg font-bold text-[#191716]">
-              Atelier Sizing Guide
+              Sinta Sizing Guide
             </h3>
           </div>
           <button

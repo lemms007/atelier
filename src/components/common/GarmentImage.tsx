@@ -151,7 +151,7 @@ export const GarmentImage: React.FC<GarmentImageProps> = ({
           </p>
         )}
         <h4 className="font-serif text-xs font-semibold text-[#141312] max-w-[90%] line-clamp-2 mt-0.5">
-          {garmentName || alt || 'Atelier Garment'}
+          {garmentName || alt || 'Sinta Garment'}
         </h4>
         {categoryName && (
           <span className="mt-1.5 text-[8px] sm:text-[9px] px-2 py-0.5 rounded-full bg-white/70 border border-[#E8E4DF] text-[#5C5854]">

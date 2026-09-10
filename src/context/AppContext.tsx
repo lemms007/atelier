@@ -308,7 +308,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await signOutCurrentUser();
       setUserProfile(null);
       setCurrentUser(null);
-      showToast('Signed out of Atelier.');
+      showToast('Signed out of Sinta.');
     } catch (err) {
       console.error('Logout failed:', err);
     }
@@ -325,7 +325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const currentData = userProfile || {
       uid,
       email: currentUser?.email || '',
-      displayName: currentUser?.displayName || 'Atelier Renter',
+      displayName: currentUser?.displayName || 'Sinta Renter',
       isRegistered: true,
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),

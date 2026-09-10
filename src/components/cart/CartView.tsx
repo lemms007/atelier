@@ -223,7 +223,7 @@ export const CartView: React.FC = () => {
         <div className="bg-[#F5F3EF] border border-[#E8E4DF] rounded-lg p-3 flex items-start gap-2 text-[11px] text-[#5C5854]">
           <ShieldCheck className="w-3.5 h-3.5 text-[#141312] shrink-0 mt-0.5 stroke-[1.5]" />
           <p>
-            <strong className="text-[#141312]">Atelier Guarantee:</strong> Your 50% refundable amount of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
+            <strong className="text-[#141312]">Sinta Guarantee:</strong> Your 50% refundable amount of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
           </p>
         </div>
       </div>
