@@ -27,6 +27,8 @@ import {
   DollarSign,
   Tag,
   Sliders,
+  SlidersHorizontal,
+  Calculator,
   CheckCheck,
   Eye,
   Maximize2,
@@ -52,12 +54,28 @@ export const AdminInventoryView: React.FC = () => {
     normalizeFirestoreDatabase,
     configuredDurations,
     setConfiguredDurations,
+    rentalPricingConfig,
+    updateRentalPricingConfig,
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'active' | 'paused' | 'in-stock' | 'low-stock' | 'out-of-stock'>('all');
   const [adminDurationInput, setAdminDurationInput] = useState('');
+  
+  // Rental Pricing & Duration Configuration state
+  const [baseMarkupInput, setBaseMarkupInput] = useState<number>(rentalPricingConfig?.baseMarkup ?? 500);
+  const [extraRateInput, setExtraRateInput] = useState<number>(rentalPricingConfig?.extraRatePer4Days ?? 500);
+  const [sampleDressPrice, setSampleDressPrice] = useState<number>(2500);
+  const [isSavingPricingRules, setIsSavingPricingRules] = useState(false);
+  const [isApplyingFormulaToAll, setIsApplyingFormulaToAll] = useState(false);
+
+  useEffect(() => {
+    if (rentalPricingConfig) {
+      setBaseMarkupInput(rentalPricingConfig.baseMarkup ?? 500);
+      setExtraRateInput(rentalPricingConfig.extraRatePer4Days ?? 500);
+    }
+  }, [rentalPricingConfig?.baseMarkup, rentalPricingConfig?.extraRatePer4Days]);
   
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -538,6 +556,89 @@ export const AdminInventoryView: React.FC = () => {
     }
   };
 
+  const handleSavePricingRules = async () => {
+    setIsSavingPricingRules(true);
+    try {
+      await updateRentalPricingConfig({
+        baseMarkup: Number(baseMarkupInput) || 500,
+        extraRatePer4Days: Number(extraRateInput) || 500,
+        durationOptions: configuredDurations,
+      });
+      showToast(`Saved rental pricing rules: Base = Dress Price + ₱${baseMarkupInput}, +₱${extraRateInput} / 4 days`);
+    } catch (err: any) {
+      showToast(`Failed to save rental rules: ${err.message || err}`);
+    } finally {
+      setIsSavingPricingRules(false);
+    }
+  };
+
+  const handleApplyFormulaToAllGarments = async () => {
+    const confirmMsg = `Apply the updated rental formula to all ${garments.length} catalog items in Firestore?\n\n• 4-Day Base Rate = Dress Price + ₱${baseMarkupInput}\n• Extra Rate = ₱${extraRateInput} per 4 days (₱${Math.round(extraRateInput / 4)}/day)\n• Security Deposit = 50% of 4-day base rate\n\nExisting item prices will be automatically recalculated based on their dress purchase/retail price.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsApplyingFormulaToAll(true);
+    try {
+      // 1. Save config first
+      await updateRentalPricingConfig({
+        baseMarkup: Number(baseMarkupInput) || 500,
+        extraRatePer4Days: Number(extraRateInput) || 500,
+        durationOptions: configuredDurations,
+      });
+
+      // 2. Iterate and update each garment
+      let count = 0;
+      for (const g of garments) {
+        const dPrice =
+          g.dressPrice ||
+          (g.basePrice4Days > baseMarkupInput ? g.basePrice4Days - baseMarkupInput : null) ||
+          g.price_min ||
+          g.rental_price ||
+          2450;
+        const newBase4 = dPrice + Number(baseMarkupInput);
+        const dailyExtra = Math.round(Number(extraRateInput) / 4);
+        const newSecDeposit = Math.max(0, Math.round(newBase4 * 0.5));
+
+        const updatedGarment: Garment = {
+          ...g,
+          dressPrice: dPrice,
+          basePrice4Days: newBase4,
+          rental_price: newBase4,
+          dailyExtraRate: dailyExtra,
+          extraRatePer4Days: Number(extraRateInput),
+          securityDeposit: newSecDeposit,
+        };
+
+        await saveGarment(updatedGarment);
+        count++;
+      }
+
+      showToast(`Successfully recalculated and synced ${count} items with the new rental pricing formula!`);
+    } catch (err: any) {
+      console.error('Failed to batch apply pricing formula:', err);
+      showToast(`Error applying formula: ${err.message || err}`);
+    } finally {
+      setIsApplyingFormulaToAll(false);
+    }
+  };
+
+  const handleResetDurationPricingDefaults = async () => {
+    const defaultDurations = [4, 8, 12, 16];
+    setConfiguredDurations(defaultDurations);
+    setBaseMarkupInput(500);
+    setExtraRateInput(500);
+    try {
+      await updateRentalPricingConfig({
+        baseRentalDays: 4,
+        baseMarkup: 500,
+        extraRatePer4Days: 500,
+        durationOptions: defaultDurations,
+      });
+      showToast('Reset to default rental parameters: 4, 8, 12, 16 days with +₱500 markup & ₱500 / 4 extra days');
+    } catch (err: any) {
+      showToast('Reset duration presets to defaults (4, 8, 12, 16 days)');
+    }
+  };
+
   const handleDelete = async (garment: Garment) => {
     if (window.confirm(`Are you sure you want to remove "${garment.name}" from Firestore?`)) {
       try {
@@ -739,83 +840,276 @@ export const AdminInventoryView: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Rental Duration Presets Configuration */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E8E4DF] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-[#141312] uppercase tracking-wider">
-              Customer Rental Duration Presets
-            </span>
-            <span className="text-[10px] bg-[#80232F]/10 text-[#80232F] font-medium px-2 py-0.5 rounded border border-[#80232F]/20">
-              Admin Exclusive
-            </span>
+      {/* Admin Rental Duration & Pricing Configuration Engine */}
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#E8E4DF] shadow-2xs space-y-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E8E4DF]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#80232F]/10 border border-[#80232F]/20 flex items-center justify-center text-[#80232F]">
+              <Calculator className="w-4 h-4 stroke-[2]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-semibold text-[#141312] uppercase tracking-wider">
+                  Rental Pricing & Duration Engine
+                </h3>
+                <span className="text-[10px] bg-[#80232F]/10 text-[#80232F] font-medium px-2 py-0.5 rounded border border-[#80232F]/20">
+                  Admin Config
+                </span>
+                <span className="text-[10px] bg-[#16A34A]/10 text-[#16A34A] font-medium px-2 py-0.5 rounded border border-[#16A34A]/20">
+                  Firestore Synced
+                </span>
+              </div>
+              <p className="text-xs text-[#5C5854] mt-0.5">
+                Configure customer rental durations and global automated pricing formula (<span className="font-medium text-[#141312]">4 Days = Dress Price + ₱500, then ₱500 per +4 Days</span>).
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-[#5C5854] mt-0.5">
-            Configure preset rental duration pills presented to customers on product detail pages.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {configuredDurations.map((days) => (
-              <span
-                key={days}
-                className="bg-[#FAF9F6] border border-[#E8E4DF] px-2.5 py-1 rounded-full text-xs font-medium text-[#141312] flex items-center gap-1.5"
-              >
-                <span>{days} Days</span>
-                {configuredDurations.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setConfiguredDurations(configuredDurations.filter((d) => d !== days))}
-                    className="text-[#948E88] hover:text-[#80232F] font-bold text-sm leading-none ml-0.5 cursor-pointer"
-                    title={`Remove ${days} days preset`}
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const parsed = parseInt(adminDurationInput.trim(), 10);
-              if (!isNaN(parsed) && parsed >= 1 && parsed <= 60 && !configuredDurations.includes(parsed)) {
-                setConfiguredDurations([...configuredDurations, parsed].sort((a, b) => a - b));
-                setAdminDurationInput('');
-                showToast(`Added ${parsed} days duration preset`);
-              }
-            }}
-            className="flex items-center gap-1.5"
-          >
-            <input
-              type="number"
-              min="1"
-              max="60"
-              placeholder="Add days (e.g. 7)"
-              value={adminDurationInput}
-              onChange={(e) => setAdminDurationInput(e.target.value)}
-              className="w-28 bg-[#FAF9F6] border border-[#E8E4DF] rounded px-2.5 py-1 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-            />
-            <button
-              type="submit"
-              className="px-2.5 py-1 bg-[#141312] text-white rounded text-xs font-medium hover:bg-[#2A2725] transition-colors cursor-pointer"
-            >
-              Add
-            </button>
-          </form>
 
           <button
             type="button"
-            onClick={() => {
-              setConfiguredDurations([4, 8, 12, 14]);
-              showToast('Reset rental duration presets to defaults (4, 8, 12, 14 days)');
-            }}
-            className="text-[11px] text-[#80232F] hover:underline px-1 py-1 font-medium cursor-pointer"
+            onClick={handleResetDurationPricingDefaults}
+            className="text-[11px] text-[#80232F] hover:underline font-medium self-start sm:self-auto cursor-pointer"
           >
-            Reset Defaults
+            Reset to Standard (4, 8, 12, 16 Days)
           </button>
+        </div>
+
+        {/* Configuration Controls & Live Simulator */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Column: Duration Presets & Formula Parameters (7 Cols) */}
+          <div className="lg:col-span-7 space-y-4">
+            {/* 1. Customer Duration Presets */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-semibold text-[#141312] uppercase tracking-wider block">
+                  Customer Rental Duration Presets
+                </label>
+                <span className="text-[10px] text-[#948E88]">Pills shown on Product Detail Page</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {configuredDurations.map((days) => (
+                    <span
+                      key={days}
+                      className="bg-[#FAF9F6] border border-[#E8E4DF] px-2.5 py-1 rounded-full text-xs font-medium text-[#141312] flex items-center gap-1.5"
+                    >
+                      <span>{days} Days</span>
+                      {configuredDurations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setConfiguredDurations(configuredDurations.filter((d) => d !== days))}
+                          className="text-[#948E88] hover:text-[#80232F] font-bold text-sm leading-none ml-0.5 cursor-pointer"
+                          title={`Remove ${days} days preset`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const parsed = parseInt(adminDurationInput.trim(), 10);
+                    if (!isNaN(parsed) && parsed >= 1 && parsed <= 60 && !configuredDurations.includes(parsed)) {
+                      const next = [...configuredDurations, parsed].sort((a, b) => a - b);
+                      setConfiguredDurations(next);
+                      updateRentalPricingConfig({ durationOptions: next });
+                      setAdminDurationInput('');
+                      showToast(`Added ${parsed} days duration preset`);
+                    }
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    placeholder="Add days (e.g. 20)"
+                    value={adminDurationInput}
+                    onChange={(e) => setAdminDurationInput(e.target.value)}
+                    className="w-28 bg-[#FAF9F6] border border-[#E8E4DF] rounded px-2.5 py-1 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                  />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-[#141312] text-white rounded text-xs font-medium hover:bg-[#2A2725] transition-colors cursor-pointer"
+                  >
+                    Add
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* 2. Automated Pricing Formula Rules */}
+            <div className="bg-[#FAF9F6] p-3.5 rounded-lg border border-[#E8E4DF] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-[#141312] uppercase tracking-wider">
+                  Automated Pricing Formula Parameters
+                </span>
+                <span className="text-[10px] text-[#5C5854] font-medium">
+                  Applies to catalog &amp; bookings
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 4-Day Base Markup */}
+                <div>
+                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                    4-Day Base Markup (PHP) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-serif text-[#948E88]">₱</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={baseMarkupInput}
+                      onChange={(e) => setBaseMarkupInput(Number(e.target.value))}
+                      className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-[#E8E4DF] rounded text-xs text-[#141312] font-medium focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+                  <span className="text-[10px] text-[#948E88] mt-1 block">
+                    Formula: 4 Days = Dress Price + ₱{baseMarkupInput}
+                  </span>
+                </div>
+
+                {/* Extra Rate per 4 Days */}
+                <div>
+                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                    Extra Rate per 4 Days (PHP) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-serif text-[#948E88]">₱</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={extraRateInput}
+                      onChange={(e) => setExtraRateInput(Number(e.target.value))}
+                      className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-[#E8E4DF] rounded text-xs text-[#141312] font-medium focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+                  <span className="text-[10px] text-[#948E88] mt-1 block">
+                    Formula: +₱{extraRateInput} every 4 days (~₱{Math.round(extraRateInput / 4)}/day)
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#E8E4DF]">
+                <button
+                  type="button"
+                  id="btn-save-rental-pricing-rules"
+                  disabled={isSavingPricingRules || isApplyingFormulaToAll}
+                  onClick={handleSavePricingRules}
+                  className="px-3.5 py-1.5 bg-[#141312] text-white rounded-md text-xs font-semibold hover:bg-[#2A2725] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSavingPricingRules ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Rules...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Pricing Rules</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-apply-formula-all-items"
+                  disabled={isApplyingFormulaToAll || isSavingPricingRules}
+                  onClick={handleApplyFormulaToAllGarments}
+                  className="px-3.5 py-1.5 bg-[#80232F] text-white rounded-md text-xs font-semibold hover:bg-[#601923] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  title="Recalculate base rates and extra rates for all items in the database"
+                >
+                  {isApplyingFormulaToAll ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Applying to {garments.length} items...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Apply Formula to All ({garments.length}) Items</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Live Formula Rate Simulator (5 Cols) */}
+          <div className="lg:col-span-5 bg-[#FAF9F6] p-3.5 rounded-lg border border-[#E8E4DF] flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#80232F]" />
+                  <span className="text-[10px] font-semibold text-[#141312] uppercase tracking-wider">
+                    Formula Live Simulator
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#80232F] font-medium">Real-Time</span>
+              </div>
+
+              {/* Sample Dress Price Input */}
+              <div className="mb-3">
+                <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                  Test Dress Purchase / Retail Price
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-serif text-[#948E88]">₱</span>
+                  <input
+                    type="number"
+                    min={100}
+                    step={100}
+                    value={sampleDressPrice}
+                    onChange={(e) => setSampleDressPrice(Number(e.target.value))}
+                    className="w-full pl-6 pr-2.5 py-1 bg-white border border-[#E8E4DF] rounded text-xs text-[#141312] font-semibold focus:outline-none focus:border-[#141312]"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated Tier Rates */}
+              <div className="space-y-1.5">
+                {configuredDurations.map((days) => {
+                  const extraBlocks = Math.max(0, Math.ceil((days - 4) / 4));
+                  const calculatedPrice = sampleDressPrice + baseMarkupInput + (extraBlocks * extraRateInput);
+                  return (
+                    <div
+                      key={days}
+                      className="flex items-center justify-between p-2 rounded bg-white border border-[#E8E4DF] text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#141312]">{days} Days</span>
+                        <span className="text-[10px] text-[#948E88]">
+                          {days === 4
+                            ? `Dress + ₱${baseMarkupInput}`
+                            : `+${extraBlocks * 4}d (+₱${extraBlocks * extraRateInput})`}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-[#80232F]">
+                        {formatPHP(calculatedPrice)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom summary note */}
+            <div className="mt-3 pt-2 border-t border-[#E8E4DF] flex items-center justify-between text-[10px] text-[#5C5854]">
+              <span>Deposit (50% refundable):</span>
+              <span className="font-medium text-[#141312]">
+                {formatPHP(Math.round((sampleDressPrice + baseMarkupInput) * 0.5))}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1881,91 +2175,188 @@ export const AdminInventoryView: React.FC = () => {
                 </div>
               </div>
 
-              {/* 3. Pricing Adjustment Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    4-Day Base Rate (PHP) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={100}
-                    value={quickAdjustGarment.basePrice4Days}
-                    onChange={(e) => {
-                      const newBase = Number(e.target.value);
+              {/* 3. Pricing Adjustment Grid & Formula */}
+              <div className="bg-[#FAF9F6] border border-[#E8E4DF] rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#141312] flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5 text-[#80232F]" />
+                    Pricing &amp; Rental Rates Formula
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dPrice =
+                        quickAdjustGarment.dressPrice ||
+                        (quickAdjustGarment.basePrice4Days > baseMarkupInput
+                          ? quickAdjustGarment.basePrice4Days - baseMarkupInput
+                          : quickAdjustGarment.basePrice4Days);
+                      const newBase = dPrice + baseMarkupInput;
+                      const dailyRate = Math.round(extraRateInput / 4);
+                      const deposit = Math.round(newBase * 0.5);
                       setQuickAdjustGarment({
                         ...quickAdjustGarment,
+                        dressPrice: dPrice,
                         basePrice4Days: newBase,
+                        dailyExtraRate: dailyRate,
+                        extraRatePer4Days: extraRateInput,
+                        securityDeposit: deposit,
                       });
+                      showToast('Applied formula: Base = Dress + ₱' + baseMarkupInput + ', +₱' + extraRateInput + '/4d');
                     }}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
-                  />
+                    className="text-[10px] text-[#80232F] hover:underline font-medium cursor-pointer"
+                  >
+                    Auto-Compute Formula
+                  </button>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block">
-                      Daily Extra Rate (PHP)
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Dress Retail / Purchase Price (PHP)
                     </label>
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <input
+                      type="number"
+                      min={100}
+                      value={
+                        quickAdjustGarment.dressPrice ||
+                        (quickAdjustGarment.basePrice4Days > baseMarkupInput
+                          ? quickAdjustGarment.basePrice4Days - baseMarkupInput
+                          : quickAdjustGarment.basePrice4Days)
+                      }
+                      onChange={(e) => {
+                        const newDressPrice = Number(e.target.value);
+                        const newBase = newDressPrice + baseMarkupInput;
+                        const dailyRate = Math.round(extraRateInput / 4);
+                        const deposit = Math.round(newBase * 0.5);
                         setQuickAdjustGarment({
                           ...quickAdjustGarment,
-                          dailyExtraRate: Math.round((quickAdjustGarment.basePrice4Days || 4500) * 0.15),
+                          dressPrice: newDressPrice,
+                          basePrice4Days: newBase,
+                          dailyExtraRate: dailyRate,
+                          extraRatePer4Days: extraRateInput,
+                          securityDeposit: deposit,
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-medium focus:outline-none focus:border-[#141312]"
+                    />
+                    <span className="text-[9px] text-[#948E88] mt-0.5 block">
+                      Formula base: Dress Price
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      4-Day Base Rate (PHP) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={quickAdjustGarment.basePrice4Days}
+                      onChange={(e) => {
+                        const newBase = Number(e.target.value);
+                        setQuickAdjustGarment({
+                          ...quickAdjustGarment,
+                          basePrice4Days: newBase,
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-semibold focus:outline-none focus:border-[#141312]"
+                    />
+                    <span className="text-[9px] text-[#948E88] mt-0.5 block">
+                      Dress Price + ₱{baseMarkupInput}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-medium uppercase text-[#5C5854] block">
+                        Extra Rate per 4 Days (PHP)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuickAdjustGarment({
+                            ...quickAdjustGarment,
+                            extraRatePer4Days: extraRateInput,
+                            dailyExtraRate: Math.round(extraRateInput / 4),
+                          })
+                        }
+                        className="text-[9px] text-[#80232F] hover:underline"
+                      >
+                        Reset ₱{extraRateInput}
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={quickAdjustGarment.extraRatePer4Days || extraRateInput}
+                      onChange={(e) => {
+                        const rate4d = Number(e.target.value);
+                        setQuickAdjustGarment({
+                          ...quickAdjustGarment,
+                          extraRatePer4Days: rate4d,
+                          dailyExtraRate: Math.round(rate4d / 4),
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                    <span className="text-[9px] text-[#948E88] mt-0.5 block">
+                      ~₱{Math.round((quickAdjustGarment.extraRatePer4Days || extraRateInput) / 4)}/day
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-medium uppercase text-[#5C5854] block">
+                        Security Deposit (PHP)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuickAdjustGarment({
+                            ...quickAdjustGarment,
+                            securityDeposit: Math.round((quickAdjustGarment.basePrice4Days || 4500) * 0.5),
+                          })
+                        }
+                        className="text-[9px] text-[#80232F] hover:underline"
+                      >
+                        Auto 50%
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={quickAdjustGarment.securityDeposit}
+                      onChange={(e) =>
+                        setQuickAdjustGarment({
+                          ...quickAdjustGarment,
+                          securityDeposit: Number(e.target.value),
                         })
                       }
-                      className="text-[9px] text-[#80232F] hover:underline"
-                    >
-                      Auto 15%
-                    </button>
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                    <span className="text-[9px] text-[#948E88] mt-0.5 block">
+                      50% refundable deposit
+                    </span>
                   </div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={quickAdjustGarment.dailyExtraRate || Math.round(quickAdjustGarment.basePrice4Days * 0.15)}
-                    onChange={(e) =>
-                      setQuickAdjustGarment({
-                        ...quickAdjustGarment,
-                        dailyExtraRate: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
-                  />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block">
-                      Security Deposit (PHP)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setQuickAdjustGarment({
-                          ...quickAdjustGarment,
-                          securityDeposit: Math.round((quickAdjustGarment.basePrice4Days || 4500) * 0.5),
-                        })
-                      }
-                      className="text-[9px] text-[#80232F] hover:underline"
-                    >
-                      Auto 50%
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={quickAdjustGarment.securityDeposit}
-                    onChange={(e) =>
-                      setQuickAdjustGarment({
-                        ...quickAdjustGarment,
-                        securityDeposit: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
-                  />
+                {/* Live Rental Rates Preview Pill Bar */}
+                <div className="pt-2 border-t border-[#E8E4DF] flex flex-wrap items-center gap-2 text-[10px]">
+                  <span className="text-[#5C5854] font-medium">Customer Rates:</span>
+                  {[4, 8, 12, 16].map((days) => {
+                    const extraBlocks = Math.max(0, Math.ceil((days - 4) / 4));
+                    const rate =
+                      quickAdjustGarment.basePrice4Days +
+                      extraBlocks * (quickAdjustGarment.extraRatePer4Days || extraRateInput);
+                    return (
+                      <span key={days} className="bg-white border border-[#E8E4DF] px-2 py-0.5 rounded font-semibold text-[#141312]">
+                        {days}d: <span className="text-[#80232F]">{formatPHP(rate)}</span>
+                      </span>
+                    );
+                  })}
                 </div>
+              </div>
 
                 <div>
                   <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
@@ -1984,7 +2375,6 @@ export const AdminInventoryView: React.FC = () => {
                     className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
                   />
                 </div>
-              </div>
 
               {/* Action Buttons */}
               <div className="pt-3 border-t border-[#E8E4DF] flex items-center justify-end gap-2">
@@ -2175,63 +2565,149 @@ export const AdminInventoryView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pricing Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={editingGarment.category}
-                    onChange={(e) => setEditingGarment({ ...editingGarment, category: e.target.value as any })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312] bg-white"
+              {/* Pricing Grid & Formula */}
+              <div className="bg-[#FAF9F6] border border-[#E8E4DF] rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#141312] flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5 text-[#80232F]" />
+                    Pricing &amp; Formula Settings
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dPrice =
+                        editingGarment.dressPrice ||
+                        (editingGarment.basePrice4Days > baseMarkupInput
+                          ? editingGarment.basePrice4Days - baseMarkupInput
+                          : editingGarment.basePrice4Days);
+                      const newBase = dPrice + baseMarkupInput;
+                      const dailyRate = Math.round(extraRateInput / 4);
+                      const deposit = Math.round(newBase * 0.5);
+                      setEditingGarment({
+                        ...editingGarment,
+                        dressPrice: dPrice,
+                        basePrice4Days: newBase,
+                        dailyExtraRate: dailyRate,
+                        extraRatePer4Days: extraRateInput,
+                        securityDeposit: deposit,
+                      });
+                      showToast(`Applied formula to ${editingGarment.name}`);
+                    }}
+                    className="text-[10px] text-[#80232F] hover:underline font-medium cursor-pointer"
                   >
-                    {categories.filter((c) => c !== 'All').map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
+                    Auto-Compute Formula
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    4-Day Rate (PHP) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={100}
-                    value={editingGarment.basePrice4Days}
-                    onChange={(e) => setEditingGarment({ ...editingGarment, basePrice4Days: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={editingGarment.category}
+                      onChange={(e) => setEditingGarment({ ...editingGarment, category: e.target.value as any })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312] bg-white"
+                    >
+                      {categories.filter((c) => c !== 'All').map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Dress Price (PHP)
+                    </label>
+                    <input
+                      type="number"
+                      min={100}
+                      value={
+                        editingGarment.dressPrice ||
+                        (editingGarment.basePrice4Days > baseMarkupInput
+                          ? editingGarment.basePrice4Days - baseMarkupInput
+                          : editingGarment.basePrice4Days)
+                      }
+                      onChange={(e) => {
+                        const newD = Number(e.target.value);
+                        const newB = newD + baseMarkupInput;
+                        setEditingGarment({
+                          ...editingGarment,
+                          dressPrice: newD,
+                          basePrice4Days: newB,
+                          dailyExtraRate: Math.round(extraRateInput / 4),
+                          extraRatePer4Days: extraRateInput,
+                          securityDeposit: Math.round(newB * 0.5),
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-medium focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      4-Day Rate (PHP) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={editingGarment.basePrice4Days}
+                      onChange={(e) => setEditingGarment({ ...editingGarment, basePrice4Days: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-semibold focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Rate / 4 Extra Days
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editingGarment.extraRatePer4Days || (editingGarment.dailyExtraRate ? editingGarment.dailyExtraRate * 4 : extraRateInput)}
+                      onChange={(e) => {
+                        const r4 = Number(e.target.value);
+                        setEditingGarment({
+                          ...editingGarment,
+                          extraRatePer4Days: r4,
+                          dailyExtraRate: Math.round(r4 / 4),
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Deposit (PHP)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editingGarment.securityDeposit}
+                      onChange={(e) => setEditingGarment({ ...editingGarment, securityDeposit: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Daily Extra Rate (PHP)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editingGarment.dailyExtraRate || Math.round(editingGarment.basePrice4Days * 0.15)}
-                    onChange={(e) => setEditingGarment({ ...editingGarment, dailyExtraRate: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Security Deposit (PHP)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editingGarment.securityDeposit}
-                    onChange={(e) => setEditingGarment({ ...editingGarment, securityDeposit: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
+                {/* Customer Rates Preview */}
+                <div className="pt-2 border-t border-[#E8E4DF] flex flex-wrap items-center gap-2 text-[10px]">
+                  <span className="text-[#5C5854] font-medium">Customer Rates:</span>
+                  {[4, 8, 12, 16].map((days) => {
+                    const extraBlocks = Math.max(0, Math.ceil((days - 4) / 4));
+                    const rate =
+                      editingGarment.basePrice4Days +
+                      extraBlocks * (editingGarment.extraRatePer4Days || extraRateInput);
+                    return (
+                      <span key={days} className="bg-white border border-[#E8E4DF] px-2 py-0.5 rounded font-semibold text-[#141312]">
+                        {days}d: <span className="text-[#80232F]">{formatPHP(rate)}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2529,64 +3005,117 @@ export const AdminInventoryView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={newGarment.category}
-                    onChange={(e) => setNewGarment({ ...newGarment, category: e.target.value as any })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312] bg-white"
-                  >
-                    {categories.filter((c) => c !== 'All').map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
+              {/* Pricing & Rental Formula Section in Add Modal */}
+              <div className="border border-[#E8E4DF] rounded-lg p-3.5 bg-[#FAF9F6] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#141312] flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5 text-[#80232F]" />
+                    Pricing &amp; Rental Rates Formula
+                  </span>
+                  <span className="text-[10px] text-[#80232F] font-medium">
+                    Formula: Dress Price + ₱{baseMarkupInput}, +₱{extraRateInput}/4d
+                  </span>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    4-Day Base Rental Rate (PHP) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={500}
-                    value={newGarment.basePrice4Days}
-                    onChange={(e) => setNewGarment({ ...newGarment, basePrice4Days: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={newGarment.category}
+                      onChange={(e) => setNewGarment({ ...newGarment, category: e.target.value as any })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312] bg-white"
+                    >
+                      {categories.filter((c) => c !== 'All').map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Refundable Security Deposit (PHP)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={newGarment.securityDeposit}
-                    onChange={(e) => setNewGarment({ ...newGarment, securityDeposit: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Dress Purchase / Retail Price (PHP)
+                    </label>
+                    <input
+                      type="number"
+                      min={100}
+                      placeholder="e.g. 2500"
+                      value={newGarment.dressPrice || ''}
+                      onChange={(e) => {
+                        const dP = Number(e.target.value);
+                        const newBase = dP > 0 ? dP + baseMarkupInput : (newGarment.basePrice4Days || 2500);
+                        setNewGarment({
+                          ...newGarment,
+                          dressPrice: dP,
+                          basePrice4Days: newBase,
+                          dailyExtraRate: Math.round(extraRateInput / 4),
+                          extraRatePer4Days: extraRateInput,
+                          securityDeposit: Math.round(newBase * 0.5),
+                        });
+                      }}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-medium focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      4-Day Base Rental Rate (PHP) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={newGarment.basePrice4Days}
+                      onChange={(e) => setNewGarment({ ...newGarment, basePrice4Days: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white font-semibold focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
-                    Retail Replacement Value (PHP)
-                  </label>
-                  <input
-                    type="number"
-                    min={1000}
-                    value={newGarment.retailValue}
-                    onChange={(e) => setNewGarment({ ...newGarment, retailValue: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Refundable Security Deposit (PHP)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newGarment.securityDeposit}
+                      onChange={(e) => setNewGarment({ ...newGarment, securityDeposit: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase text-[#5C5854] block mb-1">
+                      Retail Replacement Value (PHP)
+                    </label>
+                    <input
+                      type="number"
+                      min={1000}
+                      value={newGarment.retailValue}
+                      onChange={(e) => setNewGarment({ ...newGarment, retailValue: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border border-[#E8E4DF] rounded-md text-xs text-[#141312] bg-white focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+                </div>
+
+                {/* Customer Rates Preview */}
+                <div className="pt-2 border-t border-[#E8E4DF] flex flex-wrap items-center gap-2 text-[10px]">
+                  <span className="text-[#5C5854] font-medium">Customer Rates:</span>
+                  {[4, 8, 12, 16].map((days) => {
+                    const extraBlocks = Math.max(0, Math.ceil((days - 4) / 4));
+                    const base = newGarment.basePrice4Days || 2500;
+                    const rate = base + extraBlocks * extraRateInput;
+                    return (
+                      <span key={days} className="bg-white border border-[#E8E4DF] px-2 py-0.5 rounded font-semibold text-[#141312]">
+                        {days}d: <span className="text-[#80232F]">{formatPHP(rate)}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 

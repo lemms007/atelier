@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Garment } from '../../types';
+import { Garment, RentalPricingConfig } from '../../types';
 import {
   formatPHP,
   formatDisplayDateShort,
@@ -14,13 +14,14 @@ import {
   Info,
 } from 'lucide-react';
 
-const FIXED_RENTAL_DURATIONS = [4, 8, 12, 14] as const;
+const FIXED_RENTAL_DURATIONS = [4, 8, 12, 16] as const;
 
 interface RentalCalendarProps {
   garment: Garment;
   startDate: string;
   endDate: string;
   configuredDurations?: number[];
+  rentalPricingConfig?: RentalPricingConfig;
   onChangeDates: (start: string, end: string, duration: number) => void;
 }
 
@@ -29,11 +30,12 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
   startDate,
   endDate,
   configuredDurations,
+  rentalPricingConfig,
   onChangeDates,
 }) => {
   const durationList = configuredDurations && configuredDurations.length > 0
     ? configuredDurations
-    : [4, 8, 12, 14];
+    : [4, 8, 12, 16];
 
   // Calendar month navigation state
   const today = new Date();
@@ -101,7 +103,8 @@ export const RentalCalendar: React.FC<RentalCalendarProps> = ({
   const currentRentalPrice = calculateRentalPrice(
     garment.price_min || garment.basePrice4Days,
     garment.dailyExtraRate,
-    currentDuration
+    currentDuration,
+    rentalPricingConfig
   );
 
   /**

@@ -38,6 +38,13 @@ export interface GarmentVariation {
   is_available_for_rent?: boolean;
 }
 
+export interface RentalPricingConfig {
+  baseRentalDays: number; // default: 4 days
+  baseMarkup: number; // default: 500 PHP added to dress price for 4-day base rate
+  extraRatePer4Days: number; // default: 500 PHP per 4 days beyond base days
+  durationOptions: number[]; // default: [4, 8, 12, 16]
+}
+
 export interface Garment {
   id: string;
   sku?: string;
@@ -53,13 +60,15 @@ export interface Garment {
   product_slug?: string;
   product_url?: string;
   status?: string;
+  dressPrice?: number; // Catalog / retail base dress price in PHP
   price_min?: number;
   price_max?: number;
   raw_price?: string;
   rental_price?: number;
   retailValue: number; // in PHP
-  basePrice4Days: number; // 4-day minimum rate in PHP
-  dailyExtraRate: number; // rate per day beyond 4 days in PHP
+  basePrice4Days: number; // 4-day rate in PHP: dressPrice + baseMarkup (default: dressPrice + 500)
+  dailyExtraRate: number; // rate per day beyond 4 days in PHP (e.g. 125/day = 500 per 4 days)
+  extraRatePer4Days?: number; // rate per 4 additional days (default: 500)
   securityDeposit: number; // refundable deposit in PHP
   quantity?: number; // Total stock units available in vault
   available_to_sell?: number;

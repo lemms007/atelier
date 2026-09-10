@@ -57,13 +57,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     showToast,
     setIsCheckoutOpen,
     configuredDurations,
+    rentalPricingConfig,
     garmentSelections,
     setGarmentSelection,
   } = useApp();
 
   const durationOptions = configuredDurations && configuredDurations.length > 0
     ? configuredDurations
-    : [4, 8, 12, 14];
+    : [4, 8, 12, 16];
 
   const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
 
@@ -397,7 +398,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const rentalPrice = calculateRentalPrice(
     effectiveBasePrice,
     garment.dailyExtraRate,
-    durationDays
+    durationDays,
+    rentalPricingConfig
   );
   const securityDeposit = Math.max(0, Math.round(rentalPrice * 0.5));
 
@@ -771,7 +773,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       const priceForDays = calculateRentalPrice(
                         effectiveBasePrice,
                         garment.dailyExtraRate,
-                        days
+                        days,
+                        rentalPricingConfig
                       );
                       return (
                         <button
@@ -862,6 +865,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         startDate={startDate}
                         endDate={endDate}
                         configuredDurations={durationOptions}
+                        rentalPricingConfig={rentalPricingConfig}
                         onChangeDates={handleDateChange}
                       />
                     </div>

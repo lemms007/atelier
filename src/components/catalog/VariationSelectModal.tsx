@@ -37,7 +37,13 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   onSelectVariation,
   onClose,
 }) => {
-  const { addToCart, setIsCheckoutOpen, setGarmentSelection, configuredDurations } = useApp();
+  const {
+    addToCart,
+    setIsCheckoutOpen,
+    setGarmentSelection,
+    configuredDurations,
+    rentalPricingConfig,
+  } = useApp();
   const [subVariations, setSubVariations] = useState<FirestoreProductVariation[]>([]);
   const [showCalendarGrid, setShowCalendarGrid] = useState<boolean>(false);
 
@@ -174,7 +180,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   // Dates & Durations
   const durationOptions = configuredDurations && configuredDurations.length > 0
     ? configuredDurations
-    : [4, 8, 12, 14];
+    : [4, 8, 12, 16];
 
   const [durationDays, setDurationDays] = useState<number>(durationOptions[0] || 4);
 
@@ -202,7 +208,8 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
   const rentalPrice = calculateRentalPrice(
     effectiveBasePrice,
     garment.dailyExtraRate,
-    durationDays
+    durationDays,
+    rentalPricingConfig
   );
 
   const securityDeposit = Math.max(0, Math.round(rentalPrice * 0.5));
@@ -510,7 +517,8 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                 const priceForDays = calculateRentalPrice(
                   effectiveBasePrice,
                   garment.dailyExtraRate,
-                  days
+                  days,
+                  rentalPricingConfig
                 );
                 return (
                   <button
@@ -601,6 +609,7 @@ export const VariationSelectModal: React.FC<VariationSelectModalProps> = ({
                   startDate={startDate}
                   endDate={endDate}
                   configuredDurations={durationOptions}
+                  rentalPricingConfig={rentalPricingConfig}
                   onChangeDates={handleDateChange}
                 />
               </div>

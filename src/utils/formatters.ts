@@ -131,14 +131,43 @@ export const addDaysToDate = (dateStr: string, daysToAdd: number): string => {
   return date.toISOString().split('T')[0];
 };
 
+export const DEFAULT_RENTAL_PRICING_CONFIG = {
+  baseRentalDays: 4,
+  baseMarkup: 500,
+  extraRatePer4Days: 500,
+  durationOptions: [4, 8, 12, 16],
+};
+
 export const calculateRentalPrice = (
   basePrice4Days: number,
   dailyExtraRate: number,
-  durationDays: number
+  durationDays: number,
+  pricingConfig?: {
+    baseRentalDays?: number;
+    baseMarkup?: number;
+    extraRatePer4Days?: number;
+    durationOptions?: number[];
+  }
 ): number => {
-  if (durationDays <= 4) return basePrice4Days;
-  const extraDays = durationDays - 4;
-  return basePrice4Days + extraDays * dailyExtraRate;
+  const config = pricingConfig || DEFAULT_RENTAL_PRICING_CONFIG;
+  const baseDays = config.baseRentalDays || 4;
+  const extraRatePer4 = config.extraRatePer4Days !== undefined ? config.extraRatePer4Days : 500;
+
+  if (durationDays <= baseDays) {
+    return basePrice4Days;
+  }
+
+  const extraDays = durationDays - baseDays;
+  // Standard daily rate derived from extraRatePer4 (default: 500 / 4 = 125/day)
+  // For 8 days: 4 extra days * 125 = +500
+  // For 12 days: 8 extra days * 125 = +1000
+  // For 16 days: 12 extra days * 125 = +1500
+  const ratePerDay =
+    dailyExtraRate && Math.abs(dailyExtraRate - extraRatePer4 / 4) > 1
+      ? dailyExtraRate
+      : extraRatePer4 / 4;
+
+  return basePrice4Days + Math.round(extraDays * ratePerDay);
 };
 
 export const normalizeShopName = (name?: string): string => {

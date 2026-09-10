@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   setDoc,
@@ -15,6 +16,7 @@ import {
   GarmentVariation,
   GarmentColor,
   GarmentSize,
+  RentalPricingConfig,
   FirestoreRentalProduct,
   FirestoreRawProduct,
   FirestoreProductVariation,
@@ -503,6 +505,48 @@ export function determineDressCategoryAndType(
     return { category: 'Formal Evening', productType: 'Modern Filipiniana Set' };
   }
   return { category: 'Formal Evening', productType: 'Evening Gown' };
+}
+
+/**
+ * Fetch Admin Rental Pricing Configuration from Firestore doc ('settings/rental_pricing')
+ */
+export async function fetchRentalPricingConfigFromFirestore(): Promise<RentalPricingConfig | null> {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'rental_pricing'));
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        baseRentalDays: Number(data.baseRentalDays) || 4,
+        baseMarkup: data.baseMarkup !== undefined ? Number(data.baseMarkup) : 500,
+        extraRatePer4Days: data.extraRatePer4Days !== undefined ? Number(data.extraRatePer4Days) : 500,
+        durationOptions:
+          Array.isArray(data.durationOptions) && data.durationOptions.length > 0
+            ? data.durationOptions
+            : [4, 8, 12, 16],
+      };
+    }
+  } catch (err) {
+    console.warn('[Firestore] Could not fetch rental pricing config from Firestore:', err);
+  }
+  return null;
+}
+
+/**
+ * Save Admin Rental Pricing Configuration to Firestore doc ('settings/rental_pricing')
+ */
+export async function saveRentalPricingConfigToFirestore(config: RentalPricingConfig): Promise<void> {
+  try {
+    await setDoc(
+      doc(db, 'settings', 'rental_pricing'),
+      {
+        ...config,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.error('[Firestore] Failed to save rental pricing config to Firestore:', err);
+  }
 }
 
 /**
@@ -1011,24 +1055,39 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         processedRawIds.add(matchedRaw.id);
       }
 
-      // Base pricing & deposit calculations: prioritize admin-saved values, then database raw price
+      // Base pricing & deposit calculations:
+      // dressPrice: catalog retail/purchase price of the dress
       const rawPriceClean = (r.raw_price || '').replace(/[^0-9.]/g, '');
-      const dbPrice =
-        (r.basePrice4Days ? Number(r.basePrice4Days) : null) ||
+      const dressPrice =
+        (r.dressPrice ? Number(r.dressPrice) : null) ||
         (matchedRaw ? matchedRaw.price_min || matchedRaw.price_max : null) ||
         (rawPriceClean ? Number(rawPriceClean) : null) ||
+        (r.retailValue ? Number(r.retailValue) : null) ||
+        (r.basePrice4Days ? Math.max(500, Number(r.basePrice4Days) - 500) : null) ||
         Number(r.rental_price) ||
-        2950;
+        2450;
+
       const retailValue =
         (r.retailValue ? Number(r.retailValue) : null) ||
         Number(rawPriceClean) ||
-        (matchedRaw ? matchedRaw.price_max || matchedRaw.price_min : dbPrice) ||
-        dbPrice;
-      const basePrice4Days = r.basePrice4Days ? Number(r.basePrice4Days) : dbPrice;
+        dressPrice;
+
+      // Base price for 4 days is dress price + 500 (or custom admin-saved basePrice4Days)
+      const basePrice4Days =
+        r.basePrice4Days !== undefined
+          ? Number(r.basePrice4Days)
+          : dressPrice + 500;
+
+      // Rate per 4 extra days: 500 PHP -> 125 PHP/day
+      const extraRatePer4Days =
+        r.extraRatePer4Days !== undefined
+          ? Number(r.extraRatePer4Days)
+          : 500;
       const dailyExtraRate =
         r.dailyExtraRate !== undefined
           ? Number(r.dailyExtraRate)
-          : Math.max(50, Math.round(basePrice4Days * 0.15));
+          : Math.round(extraRatePer4Days / 4);
+
       const securityDeposit =
         r.securityDeposit !== undefined
           ? Number(r.securityDeposit)
@@ -1110,13 +1169,15 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         product_slug: matchedRaw?.product_slug,
         product_url: r.product_url,
         status: matchedRaw?.status || 'active',
-        price_min: matchedRaw?.price_min,
-        price_max: matchedRaw?.price_max,
+        dressPrice,
+        price_min: matchedRaw?.price_min || dressPrice,
+        price_max: matchedRaw?.price_max || dressPrice,
         raw_price: r.raw_price,
         rental_price: basePrice4Days,
         retailValue,
         basePrice4Days,
         dailyExtraRate,
+        extraRatePer4Days,
         securityDeposit,
         sizes: garmentSizes,
         colors: [],
@@ -1162,9 +1223,11 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
       const storeOrigin =
         raw.store_id === 'corsetbloomfield' ? 'Corset Bloomfield' : 'Love Humbly Shop';
 
-      const listPrice = Number(raw.price_min || raw.price_max || 2950);
-      const basePrice4Days = listPrice;
-      const dailyExtraRate = Math.max(50, Math.round(basePrice4Days * 0.15));
+      const listPrice = Number(raw.price_min || raw.price_max || 2450);
+      const dressPrice = listPrice;
+      const basePrice4Days = dressPrice + 500;
+      const extraRatePer4Days = 500;
+      const dailyExtraRate = 125;
       const securityDeposit = Math.max(0, Math.round(basePrice4Days * 0.5));
       const rawQuantity = raw.variants_count || 1;
 
@@ -1205,13 +1268,15 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         category_name: raw.category_name,
         product_slug: raw.product_slug,
         status: raw.status,
-        price_min: raw.price_min,
-        price_max: raw.price_max,
-        raw_price: `₱${listPrice.toLocaleString()}`,
+        dressPrice,
+        price_min: raw.price_min || dressPrice,
+        price_max: raw.price_max || dressPrice,
+        raw_price: `₱${dressPrice.toLocaleString()}`,
         rental_price: basePrice4Days,
-        retailValue: listPrice,
+        retailValue: dressPrice,
         basePrice4Days,
         dailyExtraRate,
+        extraRatePer4Days,
         securityDeposit,
         quantity: rawQuantity,
         available_to_sell: rawQuantity,

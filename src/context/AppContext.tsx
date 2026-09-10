@@ -18,6 +18,7 @@ import {
   FirestoreProductVariation,
   UserProfile,
   UserMeasurements,
+  RentalPricingConfig,
 } from '../types';
 import { MOCK_GARMENTS } from '../data/garments';
 import { INITIAL_MOCK_ORDERS } from '../data/initialOrders';
@@ -31,6 +32,8 @@ import {
   subscribeToFirestoreCategories,
   subscribeToFirestoreStores,
   fetchProductVariationsFromFirestore,
+  fetchRentalPricingConfigFromFirestore,
+  saveRentalPricingConfigToFirestore,
 } from '../services/firestoreProducts';
 import { auth, signInWithGoogle, signOutCurrentUser } from '../firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -108,7 +111,9 @@ interface AppContextType {
   wishlist: string[];
   toggleWishlist: (garmentId: string) => void;
 
-  // Configurable Rental Durations (default: [4, 8, 12, 14])
+  // Configurable Rental Pricing & Durations (default: [4, 8, 12, 16], base markup: 500, extra per 4d: 500)
+  rentalPricingConfig: RentalPricingConfig;
+  updateRentalPricingConfig: (updates: Partial<RentalPricingConfig>) => Promise<void>;
   configuredDurations: number[];
   setConfiguredDurations: (durations: number[]) => void;
 
@@ -446,25 +451,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'price-asc' | 'price-desc' | 'rating' | 'featured'>('newest');
 
-  // Configurable rental duration options (default: 4, 8, 12, 14 days)
-  const [configuredDurations, setConfiguredDurationsState] = useState<number[]>(() => {
+  // Configurable rental pricing and duration options (default: 4, 8, 12, 16 days; base markup 500; 500 per 4 days)
+  const DEFAULT_PRICING_CONFIG: RentalPricingConfig = {
+    baseRentalDays: 4,
+    baseMarkup: 500,
+    extraRatePer4Days: 500,
+    durationOptions: [4, 8, 12, 16],
+  };
+  const RENTAL_PRICING_STORAGE_KEY = 'sinta_rental_pricing_config_v2';
+
+  const [rentalPricingConfig, setRentalPricingConfigState] = useState<RentalPricingConfig>(() => {
     try {
-      const saved = localStorage.getItem('ATELIER_CONFIGURED_DURATIONS');
+      const saved = localStorage.getItem(RENTAL_PRICING_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        return {
+          baseRentalDays: Number(parsed.baseRentalDays) || 4,
+          baseMarkup: parsed.baseMarkup !== undefined ? Number(parsed.baseMarkup) : 500,
+          extraRatePer4Days: parsed.extraRatePer4Days !== undefined ? Number(parsed.extraRatePer4Days) : 500,
+          durationOptions:
+            Array.isArray(parsed.durationOptions) && parsed.durationOptions.length > 0
+              ? parsed.durationOptions
+              : [4, 8, 12, 16],
+        };
       }
     } catch {}
-    return [4, 8, 12, 14];
+    return DEFAULT_PRICING_CONFIG;
   });
+
+  const configuredDurations = rentalPricingConfig.durationOptions;
 
   const setConfiguredDurations = (durations: number[]) => {
     const sorted = Array.from(new Set(durations)).sort((a, b) => a - b);
-    setConfiguredDurationsState(sorted);
+    const updated: RentalPricingConfig = {
+      ...rentalPricingConfig,
+      durationOptions: sorted.length > 0 ? sorted : [4, 8, 12, 16],
+    };
+    setRentalPricingConfigState(updated);
     try {
-      localStorage.setItem('ATELIER_CONFIGURED_DURATIONS', JSON.stringify(sorted));
+      localStorage.setItem(RENTAL_PRICING_STORAGE_KEY, JSON.stringify(updated));
     } catch {}
+    saveRentalPricingConfigToFirestore(updated).catch(() => {});
   };
+
+  const updateRentalPricingConfig = async (updates: Partial<RentalPricingConfig>) => {
+    const updated: RentalPricingConfig = {
+      ...rentalPricingConfig,
+      ...updates,
+      durationOptions: updates.durationOptions
+        ? Array.from(new Set(updates.durationOptions)).sort((a, b) => a - b)
+        : rentalPricingConfig.durationOptions,
+    };
+    setRentalPricingConfigState(updated);
+    try {
+      localStorage.setItem(RENTAL_PRICING_STORAGE_KEY, JSON.stringify(updated));
+    } catch {}
+    await saveRentalPricingConfigToFirestore(updated);
+  };
+
+  // Sync pricing config from Firestore on mount
+  useEffect(() => {
+    fetchRentalPricingConfigFromFirestore()
+      .then((remoteConfig) => {
+        if (remoteConfig) {
+          setRentalPricingConfigState((prev) => ({
+            ...prev,
+            ...remoteConfig,
+            durationOptions:
+              remoteConfig.durationOptions && remoteConfig.durationOptions.length > 0
+                ? remoteConfig.durationOptions
+                : [4, 8, 12, 16],
+          }));
+          try {
+            localStorage.setItem(RENTAL_PRICING_STORAGE_KEY, JSON.stringify(remoteConfig));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Garments / Products state initialized immediately from cached storage or live Firestore
   const [garments, setGarments] = useState<Garment[]>(() => {
@@ -886,6 +950,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSortBy,
         wishlist,
         toggleWishlist,
+        rentalPricingConfig,
+        updateRentalPricingConfig,
         configuredDurations,
         setConfiguredDurations,
         garments,
