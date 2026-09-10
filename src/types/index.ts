@@ -204,7 +204,20 @@ export type GovernmentIdType =
   | 'Philippine Passport'
   | "Driver's License (LTO)"
   | 'Unified Multi-Purpose ID (UMID)'
-  | 'Philippine National ID (PhilID)';
+  | 'Philippine National ID (PhilID)'
+  | 'Professional Regulation Commission (PRC) ID'
+  | 'Postal ID'
+  | "Voter's ID or Voter's Certification";
+
+export const PHILIPPINE_GOVERNMENT_IDS: GovernmentIdType[] = [
+  'Philippine Passport',
+  "Driver's License (LTO)",
+  'Unified Multi-Purpose ID (UMID)',
+  'Philippine National ID (PhilID)',
+  'Professional Regulation Commission (PRC) ID',
+  'Postal ID',
+  "Voter's ID or Voter's Certification",
+];
 
 export interface KYCData {
   idType: GovernmentIdType;

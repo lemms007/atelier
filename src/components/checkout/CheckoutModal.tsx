@@ -5,6 +5,7 @@ import {
   KYCData,
   PaymentData,
   GovernmentIdType,
+  PHILIPPINE_GOVERNMENT_IDS,
   PaymentMethod,
   BankName,
   DeliveryMethod,
@@ -808,10 +809,11 @@ export const CheckoutModal: React.FC = () => {
                     onChange={(e) => setIdType(e.target.value as GovernmentIdType)}
                     className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
                   >
-                    <option value="Philippine Passport">Philippine Passport</option>
-                    <option value="Driver's License (LTO)">Driver's License (LTO)</option>
-                    <option value="Unified Multi-Purpose ID (UMID)">Unified Multi-Purpose ID (UMID)</option>
-                    <option value="Philippine National ID (PhilID)">Philippine National ID (PhilID)</option>
+                    {PHILIPPINE_GOVERNMENT_IDS.map((govId) => (
+                      <option key={govId} value={govId}>
+                        {govId}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

@@ -21,7 +21,7 @@ import {
   LogOut,
   Lock,
 } from 'lucide-react';
-import { GovernmentIdType, GarmentSize } from '../../types';
+import { GovernmentIdType, PHILIPPINE_GOVERNMENT_IDS, GarmentSize } from '../../types';
 import { parseFullName, formatFullName } from '../../utils/formatters';
 
 export const ProfileView: React.FC = () => {
@@ -553,10 +553,11 @@ export const ProfileView: React.FC = () => {
                   onChange={(e) => setKycForm({ ...kycForm, idType: e.target.value as GovernmentIdType })}
                   className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
                 >
-                  <option value="Philippine Passport">Philippine Passport</option>
-                  <option value="Driver's License (LTO)">Driver's License (LTO)</option>
-                  <option value="Unified Multi-Purpose ID (UMID)">Unified Multi-Purpose ID (UMID)</option>
-                  <option value="Philippine National ID (PhilID)">Philippine National ID (PhilID)</option>
+                  {PHILIPPINE_GOVERNMENT_IDS.map((govId) => (
+                    <option key={govId} value={govId}>
+                      {govId}
+                    </option>
+                  ))}
                 </select>
               </div>
 

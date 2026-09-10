@@ -75,7 +75,7 @@ export const GoogleAuthModal: React.FC = () => {
               <div>
                 <span className="font-medium text-[#141312] block">1-Time Government ID Verification</span>
                 <span className="text-[11px] text-[#78716C] leading-snug block">
-                  Upload your Philippine Passport or LTO License once; reused securely across all future couture rentals.
+                  Upload your Philippine Passport, PhilID, PRC ID, or Driver's License once; reused securely across all future couture rentals.
                 </span>
               </div>
             </div>
