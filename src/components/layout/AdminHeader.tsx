@@ -60,12 +60,9 @@ export const AdminHeader: React.FC = () => {
         <div className="h-14 flex items-center justify-between gap-4">
           {/* Brand & Portal Title */}
           <div className="flex items-center gap-3">
-            <div className="flex items-baseline gap-2">
-              <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white">
-                SINTA
-              </span>
-              <span className="text-[9px] tracking-[0.24em] font-medium text-[#948E88] uppercase hidden sm:inline">
-                WARDROBE RENTAL
+            <div className="flex items-center">
+              <span className="font-serif text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap">
+                SINTA WARDROBE RENTALS
               </span>
             </div>
             <div className="h-4 w-px bg-[#2A2725] hidden sm:block" />

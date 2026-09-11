@@ -44,13 +44,10 @@ export const AppHeader: React.FC = () => {
               setSelectedGarment(null);
               setActiveTab('explore');
             }}
-            className="text-left group flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5 focus:outline-none cursor-pointer"
+            className="text-left group flex items-center focus:outline-none cursor-pointer"
           >
-            <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#141312] group-hover:opacity-75 transition-opacity">
-              SINTA
-            </span>
-            <span className="text-[8.5px] sm:text-[9.5px] tracking-wider font-medium text-[#78716C] uppercase">
-              WARDROBE RENTAL
+            <span className="font-serif text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#141312] group-hover:opacity-75 transition-opacity whitespace-nowrap">
+              SINTA WARDROBE RENTALS
             </span>
           </button>
 
