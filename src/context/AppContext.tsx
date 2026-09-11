@@ -194,10 +194,33 @@ const ORDERS_STORAGE_KEY = 'atelier_rentals_orders_v2';
 const WISHLIST_STORAGE_KEY = 'atelier_rentals_wishlist_v2';
 const ADMIN_AUTH_STORAGE_KEY = 'atelier_admin_2fa_auth_v1';
 
+const parseAdminRoute = (): { isAdmin: boolean; tab: AdminTab } => {
+  if (typeof window === 'undefined') {
+    return { isAdmin: false, tab: 'verification' };
+  }
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const isAdmin = path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash.startsWith('#/admin/');
+  
+  let tab: AdminTab = 'verification';
+  if (path.includes('/inventory') || hash.includes('/inventory')) {
+    tab = 'inventory';
+  } else if (path.includes('/ledger') || hash.includes('/ledger')) {
+    tab = 'ledger';
+  } else if (path.includes('/settings') || hash.includes('/settings')) {
+    tab = 'settings';
+  } else if (path.includes('/verification') || hash.includes('/verification')) {
+    tab = 'verification';
+  }
+
+  return { isAdmin, tab };
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('user');
+  const initialRoute = parseAdminRoute();
+  const [viewMode, setViewModeState] = useState<ViewMode>(initialRoute.isAdmin ? 'admin' : 'user');
   const [activeTab, setActiveTabState] = useState<CustomerTab | 'admin'>('explore');
-  const [adminTab, setAdminTab] = useState<AdminTab>('verification');
+  const [adminTab, setAdminTabState] = useState<AdminTab>(initialRoute.tab);
   const [selectedGarment, setSelectedGarmentState] = useState<Garment | null>(null);
   const [garmentSelections, setGarmentSelections] = useState<Record<string, GarmentSelectionState>>({});
 
@@ -388,11 +411,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
   });
-  const [adminEmail, setAdminEmail] = useState<string>('admin@atelier-manila.ph');
+  const [adminEmail, setAdminEmail] = useState<string>('');
   const [isAdmin2FAOpen, setIsAdmin2FAOpen] = useState<boolean>(false);
   const [admin2FACode, setAdmin2FACode] = useState<string | null>(null);
   const [admin2FACodeSentAt, setAdmin2FACodeSentAt] = useState<number | null>(null);
   const [admin2FAEmailPreview, setAdmin2FAEmailPreview] = useState<Admin2FAEmail | null>(null);
+
+  // Sync route changes on browser back/forward and hash changes
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const route = parseAdminRoute();
+      setViewModeState(route.isAdmin ? 'admin' : 'user');
+      if (route.isAdmin) {
+        setAdminTabState(route.tab);
+      }
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
 
   // Send 6-Digit Verification Code to Admin Email
   const sendAdmin2FACode = (targetEmail?: string) => {
@@ -432,11 +473,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // ignore storage error
       }
       setIsAdmin2FAOpen(false);
-      setViewMode('admin');
+      setViewModeState('admin');
       showToast('Two-Factor Authentication verified. Access granted.');
       return true;
     }
     return false;
+  };
+
+  // Set ViewMode with browser URL synchronization
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode);
+    if (typeof window !== 'undefined') {
+      if (mode === 'admin') {
+        const targetPath = adminTab === 'verification' ? '/admin' : `/admin/${adminTab}`;
+        if (window.location.pathname !== targetPath) {
+          window.history.pushState(null, '', targetPath);
+        }
+      } else {
+        if (window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin')) {
+          window.history.pushState(null, '', '/');
+        }
+      }
+    }
+  };
+
+  // Switch Admin tab with URL update
+  const setAdminTab = (tab: AdminTab) => {
+    setAdminTabState(tab);
+    if (typeof window !== 'undefined' && viewMode === 'admin') {
+      const targetPath = tab === 'verification' ? '/admin' : `/admin/${tab}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
   };
 
   // Logout / Lock Admin Console
@@ -447,21 +516,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // ignore
     }
-    setViewMode('user');
-    showToast('Admin session locked and signed out.');
+    showToast('Admin session locked.');
   };
 
-  const switchToAdmin = () => {
-    setSelectedGarment(null);
-    if (isAdminAuthenticated) {
-      setViewMode('admin');
-    } else {
-      setIsAdmin2FAOpen(true);
+  const switchToAdmin = (targetTab: AdminTab = 'verification') => {
+    setSelectedGarmentState(null);
+    setViewModeState('admin');
+    setAdminTabState(targetTab);
+    if (typeof window !== 'undefined') {
+      const targetPath = targetTab === 'verification' ? '/admin' : `/admin/${targetTab}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
     }
   };
 
   const switchToUser = () => {
-    setViewMode('user');
+    setSelectedGarmentState(null);
+    setViewModeState('user');
+    if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin'))) {
+      window.history.pushState(null, '', '/');
+    }
   };
 
   const setActiveTab = (tab: CustomerTab | 'admin') => {
@@ -475,7 +550,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const navigateToRentals = (filter: RentalsFilterType = 'all', orderId: string | null = null) => {
     setSelectedGarmentState(null);
-    setViewMode('user');
+    switchToUser();
     setRentalsFilter(filter);
     setActiveOrderId(orderId);
     setActiveTabState('my-rentals');

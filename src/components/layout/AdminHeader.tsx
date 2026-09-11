@@ -32,7 +32,7 @@ export const AdminHeader: React.FC = () => {
           <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
           <span>Internal Sinta Wardrobe Backoffice Desk</span>
           <span className="hidden sm:inline text-[#5C5854]">•</span>
-          <span className="hidden sm:inline text-[#22C55E]">2FA Active ({adminEmail})</span>
+          <span className="hidden sm:inline text-[#22C55E]">2FA Active ({adminEmail || 'Staff'})</span>
         </div>
         <div className="flex items-center gap-3">
           <button

@@ -29,8 +29,6 @@ export const ProfileView: React.FC = () => {
     resetAllData,
     orders,
     wishlist,
-    switchToAdmin,
-    isAdminAuthenticated,
     currentUser,
     userProfile,
     loginWithGoogle,
@@ -811,32 +809,6 @@ export const ProfileView: React.FC = () => {
             View all {faqs.length} FAQs & Guidelines
           </button>
         )}
-      </div>
-
-      {/* Staff & Admin Portal Access */}
-      <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] p-4 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-[#141312]" />
-            <h3 className="font-serif text-xs font-semibold text-[#141312]">
-              Sinta Operations & Verification Portal
-            </h3>
-          </div>
-          <span className="text-[9px] bg-[#FAF9F6] border border-[#E8E4DF] text-[#5C5854] px-1.5 py-0.5 rounded font-mono uppercase">
-            {isAdminAuthenticated ? '2FA Verified' : '2FA Protected'}
-          </span>
-        </div>
-        <p className="text-xs text-[#5C5854] leading-relaxed">
-          Access the backend management console to review government IDs, verify GCash/Bank transfer receipts, manage garment inventory, and authorize dispatch.
-        </p>
-        <button
-          id="btn-profile-open-admin"
-          onClick={switchToAdmin}
-          className="w-full py-2 bg-[#FAF9F6] hover:bg-[#141312] text-[#141312] hover:text-white border border-[#E8E4DF] hover:border-[#141312] text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>{isAdminAuthenticated ? 'Launch Admin Verification Console' : 'Authenticate with 2FA & Launch Console'}</span>
-        </button>
       </div>
 
       {/* Chat with Us & Reset Actions */}

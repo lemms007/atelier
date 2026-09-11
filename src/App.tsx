@@ -11,14 +11,16 @@ import { MyRentalsView } from './components/rentals/MyRentalsView';
 import { AdminOrdersPortal } from './components/admin/AdminOrdersPortal';
 import { ProfileView } from './components/profile/ProfileView';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
-import { Admin2FAModal } from './components/admin/Admin2FAModal';
+import { AdminAuthScreen } from './components/admin/AdminAuthScreen';
 import { GoogleAuthModal } from './components/auth/GoogleAuthModal';
 import { FaqModal } from './components/common/FaqModal';
+import { FloatingFaqButton } from './components/common/FloatingFaqButton';
 import { Garment, CustomerTab, ViewMode } from './types';
 
 const AppContent: React.FC = () => {
   const {
     viewMode,
+    isAdminAuthenticated,
     activeTab,
     selectedGarment,
     setSelectedGarment,
@@ -93,6 +95,15 @@ const AppContent: React.FC = () => {
 
   // Distinct Admin / Backoffice Portal View
   if (viewMode === 'admin') {
+    if (!isAdminAuthenticated) {
+      return (
+        <div className="min-h-screen bg-[#141312] text-[#FAF9F6] flex flex-col antialiased selection:bg-[#FAF9F6]/20 selection:text-white">
+          <AdminAuthScreen />
+          <Toast />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#FAF9F6] text-[#141312] flex flex-col antialiased selection:bg-[#141312]/10 selection:text-[#141312]">
         {/* Dedicated Admin Portal Header */}
@@ -144,8 +155,8 @@ const AppContent: React.FC = () => {
       {/* FAQs & Rental Guidelines Modal */}
       <FaqModal />
 
-      {/* Admin Two-Factor Authentication Modal */}
-      <Admin2FAModal />
+      {/* Floating FAQ Quick Trigger */}
+      <FloatingFaqButton />
 
       {/* Notification Toast */}
       <Toast />

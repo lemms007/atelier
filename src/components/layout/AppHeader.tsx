@@ -3,12 +3,10 @@ import { useApp } from '../../context/AppContext';
 import {
   Search,
   ShoppingBag,
-  ShieldCheck,
   X,
   Heart,
   Sparkles,
   Clock,
-  HelpCircle,
 } from 'lucide-react';
 
 export const AppHeader: React.FC = () => {
@@ -19,7 +17,6 @@ export const AppHeader: React.FC = () => {
     searchQuery,
     setSearchQuery,
     orders,
-    switchToAdmin,
     wishlist,
     selectedCategory,
     setSelectedCategory,
@@ -28,15 +25,9 @@ export const AppHeader: React.FC = () => {
     setIsGoogleLoginModalOpen,
     setSelectedGarment,
     navigateToRentals,
-    openFaqModal,
   } = useApp();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // Count orders under verification
-  const pendingVerificationCount = orders.filter(
-    (o) => o.status === 'Under Verification'
-  ).length;
 
   const currentRentalsCount = orders.filter(
     (o) => !['Completed / Deposit Refunded', 'Payment Rejected'].includes(o.status)
@@ -79,17 +70,6 @@ export const AppHeader: React.FC = () => {
               }`}
             >
               Collection
-            </button>
-
-            <button
-              id="nav-desktop-faq"
-              type="button"
-              onClick={() => openFaqModal()}
-              className="w-9 h-9 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center border bg-white border-[#E8E4DF] text-[#78716C] hover:text-[#141312] hover:border-[#141312] hover:bg-[#F5F3EF] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#141312] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF9F6] shrink-0"
-              title="Rental Guidelines & FAQs"
-              aria-label="Rental FAQs"
-            >
-              <HelpCircle className="w-4 h-4 stroke-[1.5]" />
             </button>
           </nav>
         </div>
@@ -300,27 +280,6 @@ export const AppHeader: React.FC = () => {
                 <span className="hidden sm:inline">Sign In</span>
               </button>
             )}
-
-            {/* 6. Admin Portal Switcher */}
-            <button
-              id="btn-header-admin-desk"
-              type="button"
-              onClick={() => {
-                setSelectedGarment(null);
-                switchToAdmin();
-              }}
-              className="h-9 px-2.5 sm:px-3 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all duration-150 bg-white border border-[#E8E4DF] text-[#5C5854] hover:text-[#141312] hover:border-[#141312] hover:bg-[#F5F3EF] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#141312] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF9F6] cursor-pointer shrink-0"
-              title="Switch to Admin Verification Console"
-              aria-label="Switch to Admin Console"
-            >
-              <ShieldCheck className="w-4 h-4 stroke-[1.75]" />
-              <span className="hidden sm:inline">Admin</span>
-              {pendingVerificationCount > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#141312] text-white text-[10px] font-bold tabular-nums leading-none flex items-center justify-center">
-                  {pendingVerificationCount}
-                </span>
-              )}
-            </button>
           </div>
         </div>
       </div>

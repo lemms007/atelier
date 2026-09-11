@@ -285,25 +285,6 @@ export const Admin2FAModal: React.FC = () => {
                     autoFocus
                   />
                 </div>
-
-                {/* Quick email presets */}
-                <div className="flex items-center gap-1.5 pt-1">
-                  <span className="text-[10px] text-[#948E88]">Quick fill:</span>
-                  <button
-                    type="button"
-                    onClick={() => setEmailInput('admin@atelier-manila.ph')}
-                    className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] hover:border-[#141312] px-2 py-0.5 rounded text-[#5C5854] transition-colors"
-                  >
-                    admin@atelier-manila.ph
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEmailInput('lemms007@gmail.com')}
-                    className="text-[10px] bg-[#FAF9F6] border border-[#E8E4DF] hover:border-[#141312] px-2 py-0.5 rounded text-[#5C5854] transition-colors"
-                  >
-                    lemms007@gmail.com
-                  </button>
-                </div>
               </div>
 
               {errorMessage && (
