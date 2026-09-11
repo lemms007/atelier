@@ -247,6 +247,7 @@ export type DeliveryMethod = 'lalamove' | 'same_day_courier' | 'express_provinci
 
 export type ViewMode = 'user' | 'admin';
 export type CustomerTab = 'explore' | 'cart' | 'my-rentals' | 'profile';
+export type RentalsFilterType = 'all' | 'current' | 'previous';
 export type AdminTab = 'verification' | 'inventory' | 'ledger';
 
 export interface Admin2FAEmail {

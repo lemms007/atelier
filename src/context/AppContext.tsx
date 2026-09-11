@@ -11,6 +11,7 @@ import {
   GarmentSize,
   ViewMode,
   CustomerTab,
+  RentalsFilterType,
   AdminTab,
   Admin2FAEmail,
   FirestoreCategory,
@@ -92,6 +93,9 @@ interface AppContextType {
   setGarmentSelection: (garmentId: string, selection: Partial<GarmentSelectionState>) => void;
   activeOrderId: string | null;
   setActiveOrderId: (orderId: string | null) => void;
+  rentalsFilter: RentalsFilterType;
+  setRentalsFilter: (filter: RentalsFilterType) => void;
+  navigateToRentals: (filter?: RentalsFilterType, orderId?: string | null) => void;
   isCheckoutOpen: boolean;
   setIsCheckoutOpen: (open: boolean) => void;
   checkoutStep: number;
@@ -241,6 +245,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   }, []);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [rentalsFilter, setRentalsFilter] = useState<RentalsFilterType>('all');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
 
@@ -443,6 +448,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       setActiveTabState(tab);
     }
+  };
+
+  const navigateToRentals = (filter: RentalsFilterType = 'all', orderId: string | null = null) => {
+    setSelectedGarmentState(null);
+    setViewMode('user');
+    setRentalsFilter(filter);
+    setActiveOrderId(orderId);
+    setActiveTabState('my-rentals');
   };
 
   // Filters
@@ -936,6 +949,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGarmentSelection,
         activeOrderId,
         setActiveOrderId,
+        rentalsFilter,
+        setRentalsFilter,
+        navigateToRentals,
         isCheckoutOpen,
         setIsCheckoutOpen,
         checkoutStep,

@@ -12,6 +12,7 @@ export const BottomNavigation: React.FC = () => {
     isCheckoutOpen,
     setSelectedGarment,
     selectedGarment,
+    navigateToRentals,
   } = useApp();
 
   if (isCheckoutOpen || viewMode === 'admin' || selectedGarment) {
@@ -81,8 +82,7 @@ export const BottomNavigation: React.FC = () => {
         <button
           id="nav-tab-rentals"
           onClick={() => {
-            setSelectedGarment(null);
-            setActiveTab('my-rentals');
+            navigateToRentals('all');
           }}
           className={`flex flex-col items-center justify-center min-w-[60px] min-h-[48px] py-1 relative transition-colors ${
             activeTab === 'my-rentals'
