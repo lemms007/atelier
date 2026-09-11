@@ -1,17 +1,14 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { CategoryPillFilters } from './CategoryPillFilters';
 import { GarmentCard } from './GarmentCard';
 import { Package, Heart } from 'lucide-react';
-import { getGarmentShop, getAvailableShops } from '../../utils/formatters';
 
 export const CatalogView: React.FC = () => {
   const {
     garments,
     selectedCategory,
     setSelectedCategory,
-    selectedShop,
-    setSelectedShop,
     searchQuery,
     setSearchQuery,
     sortBy,
@@ -19,9 +16,7 @@ export const CatalogView: React.FC = () => {
     wishlist,
   } = useApp();
 
-  const availableShops = useMemo(() => getAvailableShops(garments), [garments]);
-
-  // Filter garments based on category, shop, wishlist, and search
+  // Filter garments based on category, wishlist, and search
   const filteredGarments = garments
     .filter((g) => {
       // Exclude disabled or unlisted products from the public customer catalog
@@ -45,25 +40,14 @@ export const CatalogView: React.FC = () => {
         if (g.category !== selectedCategory) return false;
       }
 
-      // Shop filtering
-      if (selectedShop !== 'All') {
-        const shop = getGarmentShop(g);
-        if (shop.toLowerCase() !== selectedShop.toLowerCase()) {
-          return false;
-        }
-      }
-
       // Search filtering
-      const shopName = getGarmentShop(g);
       const matchSearch =
         !searchQuery ||
         g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        shopName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (g.store && g.store.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        g.designer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        g.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (g.designer && g.designer.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (g.category && g.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (g.productType && g.productType.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        g.fabric.toLowerCase().includes(searchQuery.toLowerCase());
+        (g.fabric && g.fabric.toLowerCase().includes(searchQuery.toLowerCase()));
 
       return matchSearch;
     })
@@ -159,7 +143,6 @@ export const CatalogView: React.FC = () => {
                   onClick={() => {
                     setSearchQuery('');
                     setSelectedCategory('All');
-                    setSelectedShop('All');
                   }}
                   className="mt-4 px-4 py-2 bg-[#141312] text-white text-xs font-medium rounded-md hover:opacity-90 transition-opacity cursor-pointer"
                 >

@@ -6,7 +6,6 @@ import {
   addDaysToDate,
   calculateRentalPrice,
   formatDisplayDateShort,
-  getGarmentShop,
   getGarmentColorOptions,
   GarmentColorOption,
   getGarmentAvailableSizes,
@@ -451,15 +450,23 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     setIsCheckoutOpen(true);
   };
 
-  const productSource = getGarmentShop(garment);
-
   const productType = garment.productType || garment.category;
+
+  const cleanedDescription = useMemo(() => {
+    const rawDesc = garment.description || '';
+    return rawDesc
+      .replace(/\s*(?:by|from)\s+(?:Love Humbly Shop|Corset Bloomfield|Love Humbly|Corsetbloomfield)\b\.?/gi, '.')
+      .replace(/\s*(?:Love Humbly Shop|Corset Bloomfield)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\.\s*\./g, '.')
+      .trim();
+  }, [garment.description]);
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `${garment.name} - ${productSource}`,
-        text: `Rent ${garment.name} by ${productSource} for ${formatPHP(rentalPrice)}`,
+        title: garment.name,
+        text: `Rent ${garment.name} for ${formatPHP(rentalPrice)}`,
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -615,13 +622,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#141312] leading-tight">
                   {garment.name}
                 </h1>
-                <p className="text-xs text-[#5C5854] mt-0.5">
-                  By <span className="text-[#141312] font-medium">{productSource}</span>
-                </p>
               </div>
 
               <p className="text-xs sm:text-[13px] text-[#5C5854] leading-relaxed whitespace-pre-line tracking-normal">
-                {garment.description}
+                {cleanedDescription || garment.description}
               </p>
             </div>
 
@@ -1099,7 +1103,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
           <div className="text-center mt-3">
             <p className="text-white font-serif text-sm">
-              {garment.name} — <span className="text-white/70">{productSource}</span>
+              {garment.name}
             </p>
             {validImages.length > 1 && (
               <p className="text-white/60 text-xs mt-0.5 font-mono">

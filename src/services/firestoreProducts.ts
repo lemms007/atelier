@@ -1143,7 +1143,7 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
 
       const description =
         matchedRaw?.description ||
-        `Handcrafted designer couture piece by ${storeOrigin}. Features refined architectural silhouettes and artisan finishing for premier galas, weddings, and formal occasions.`;
+        `Handcrafted designer couture piece. Features refined architectural silhouettes and artisan finishing for premier galas, weddings, and formal occasions.`;
 
       const garmentSizes: GarmentSize[] = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
 
@@ -1285,7 +1285,7 @@ export async function fetchAllFirestoreProducts(): Promise<Garment[]> {
         images,
         photos: raw.photos,
         image_remote_urls: raw.image_remote_urls,
-        description: raw.description || `Handmade couture piece by ${storeOrigin}.`,
+        description: raw.description || 'Handmade couture piece with artisan finishing for formal and black-tie occasions.',
         details: [
           'Hand-finished designer couture construction',
           'Premium mikado silk and boned tailoring',
