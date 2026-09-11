@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   ShippingDetails,
@@ -18,6 +18,7 @@ import {
   formatFullName,
 } from '../../utils/formatters';
 import { RentalAgreementModal } from './RentalAgreementModal';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import {
   X,
   CheckCircle2,
@@ -228,11 +229,15 @@ export const CheckoutModal: React.FC = () => {
     showToast,
     currentUser,
     userProfile,
+    checkoutConfig,
   } = useApp();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAgreementOpen, setIsAgreementOpen] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
 
   // Shipping form state: First, Middle, Last Name breakdown
@@ -257,9 +262,9 @@ export const CheckoutModal: React.FC = () => {
   const [email, setEmail] = useState(userProfile?.shippingDetails?.email || currentUser?.email || '');
   const [deliveryAddress, setDeliveryAddress] = useState(userProfile?.shippingDetails?.deliveryAddress || '');
   const [landmarkNotes, setLandmarkNotes] = useState(userProfile?.shippingDetails?.landmarkNotes || '');
-  const [province, setProvince] = useState(userProfile?.shippingDetails?.province || 'Metro Manila');
-  const [city, setCity] = useState(userProfile?.shippingDetails?.city || 'Taguig City (BGC)');
-  const [postalCode, setPostalCode] = useState(userProfile?.shippingDetails?.postalCode || '1634');
+  const [province, setProvince] = useState(userProfile?.shippingDetails?.province || '');
+  const [city, setCity] = useState(userProfile?.shippingDetails?.city || '');
+  const [postalCode, setPostalCode] = useState(userProfile?.shippingDetails?.postalCode || '');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
     (userProfile?.shippingDetails?.deliveryMethod as DeliveryMethod) || 'lalamove'
   );
@@ -309,33 +314,50 @@ export const CheckoutModal: React.FC = () => {
 
   const handleProvinceChange = (newProvince: string) => {
     setProvince(newProvince);
-    const cities = LALAMOVE_SERVICEABLE_LOCATIONS[newProvince] || [];
-    if (cities.length > 0) {
-      const nextCity = cities[0];
-      setCity(nextCity);
-      if (CITY_POSTAL_CODES[nextCity]) {
-        setPostalCode(CITY_POSTAL_CODES[nextCity]);
-      }
-    }
+    setCity('');
+    setPostalCode('');
   };
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
-    if (CITY_POSTAL_CODES[newCity]) {
+    if (newCity && CITY_POSTAL_CODES[newCity]) {
       setPostalCode(CITY_POSTAL_CODES[newCity]);
+    } else if (!newCity) {
+      setPostalCode('');
     }
   };
 
-  const availableCities = LALAMOVE_SERVICEABLE_LOCATIONS[province] || LALAMOVE_SERVICEABLE_LOCATIONS['Metro Manila'];
+  const availableCities = province && LALAMOVE_SERVICEABLE_LOCATIONS[province]
+    ? LALAMOVE_SERVICEABLE_LOCATIONS[province]
+    : [];
 
   // 3. Payment state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('gcash');
-  const [selectedBank, setSelectedBank] = useState<BankName>('BDO');
+  const [selectedBankId, setSelectedBankId] = useState<string>(() => {
+    return checkoutConfig?.bankTransfer?.accounts?.[0]?.id || 'bank-bdo';
+  });
   const [referenceNumber, setReferenceNumber] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string>('');
 
+  // Keep selectedBankId in sync with configured accounts
+  useEffect(() => {
+    if (checkoutConfig?.bankTransfer?.accounts?.length > 0) {
+      const exists = checkoutConfig.bankTransfer.accounts.some((a) => a.id === selectedBankId);
+      if (!exists) {
+        setSelectedBankId(checkoutConfig.bankTransfer.accounts[0].id);
+      }
+    }
+  }, [checkoutConfig, selectedBankId]);
+
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Scroll to top on step changes or modal open
+  useEffect(() => {
+    if (isCheckoutOpen && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [currentStep, isCheckoutOpen]);
 
   if (!isCheckoutOpen) return null;
 
@@ -351,17 +373,23 @@ export const CheckoutModal: React.FC = () => {
     if (!isValidPHMobile(mobileNumber)) {
       errs.mobileNumber = 'Valid mobile # (+63 9XX XXX XXXX) required';
     }
-    if (!deliveryAddress.trim()) errs.deliveryAddress = 'Street address / unit / building is required';
+    if (!email.trim()) {
+      errs.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Valid email address is required';
+    }
+    if (!deliveryAddress.trim()) errs.deliveryAddress = 'Address is required';
+    if (!province.trim()) errs.province = 'Province is required';
     if (!city.trim()) errs.city = 'City / Municipality is required';
+    if (!postalCode.trim()) errs.postalCode = 'Postal code is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // Step 2 Validation
+  // Step 2 Validation (Live selfie removed per user request)
   const validateStep2 = (): boolean => {
     const errs: { [key: string]: string } = {};
     if (!frontIdImage) errs.frontId = 'Front of government ID is required';
-    if (!selfieWithIdImage) errs.selfie = 'Live selfie holding your ID is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -385,11 +413,47 @@ export const CheckoutModal: React.FC = () => {
     }
 
     if (!agreedToTerms) {
-      errs.terms = 'You must agree to the Rental Terms & Damage Liability Waiver';
+      errs.terms = 'You must agree to the Terms of Service and Rental Agreement';
+    }
+
+    if (!agreedToPrivacy) {
+      errs.privacy = 'You must agree to the Privacy Policy';
     }
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
+  };
+
+  // Step navigation behaving like next button (preventing advancing if prerequisites unmet)
+  const handleStepNavigation = (targetStep: 1 | 2 | 3) => {
+    if (targetStep === currentStep) return;
+    if (targetStep === 1) {
+      setCurrentStep(1);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    if (targetStep === 2) {
+      if (currentStep === 1) {
+        if (!validateStep1()) return;
+      }
+      setCurrentStep(2);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    if (targetStep === 3) {
+      if (currentStep === 1) {
+        if (!validateStep1()) return;
+        if (!validateStep2()) {
+          setCurrentStep(2);
+          scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+          return;
+        }
+      } else if (currentStep === 2) {
+        if (!validateStep2()) return;
+      }
+      setCurrentStep(3);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }
   };
 
   // Handle final checkout submission
@@ -418,16 +482,25 @@ export const CheckoutModal: React.FC = () => {
       idType,
       frontIdImage,
       backIdImage: backIdImage || undefined,
-      selfieWithIdImage,
       idNumber,
       uploadedAt: new Date().toISOString(),
     };
 
+    const activeBankAccount =
+      checkoutConfig?.bankTransfer?.accounts?.find((a) => a.id === selectedBankId) ||
+      checkoutConfig?.bankTransfer?.accounts?.[0];
+
     const paymentData: PaymentData = {
       method: paymentMethod,
-      bankName: paymentMethod === 'bank_transfer' ? selectedBank : undefined,
-      accountName: paymentMethod === 'gcash' ? 'SINTA WARDROBE RENTAL INC' : `${selectedBank} Sinta Wardrobe Inc.`,
-      accountNumber: paymentMethod === 'gcash' ? '0917 888 2345' : '1098 2341 5560',
+      bankName: paymentMethod === 'bank_transfer' ? (activeBankAccount?.bankName as any) : undefined,
+      accountName:
+        paymentMethod === 'gcash'
+          ? (checkoutConfig?.gcash?.merchantName || 'ATELIER LUXE COUTURE INC')
+          : (activeBankAccount?.accountName || 'SINTA WARDROBE RENTAL INC.'),
+      accountNumber:
+        paymentMethod === 'gcash'
+          ? (checkoutConfig?.gcash?.accountNumber || '0917 888 2345')
+          : (activeBankAccount?.accountNumber || '0019 8273 4401'),
       referenceNumber,
       receiptImage,
       paidAmount: grandTotal,
@@ -467,11 +540,12 @@ export const CheckoutModal: React.FC = () => {
         <div className="bg-[#FFFFFF] px-5 py-3.5 border-b border-[#E8E4DF] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-serif text-base font-semibold text-[#141312]">
-              Sinta Wardrobe Rental Checkout
+              Rental
             </span>
           </div>
 
           <button
+            type="button"
             onClick={() => setIsCheckoutOpen(false)}
             className="w-8 h-8 rounded flex items-center justify-center text-[#948E88] hover:text-[#141312] transition-colors"
           >
@@ -479,17 +553,20 @@ export const CheckoutModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Step Indicator Progress Bar */}
+        {/* Step Indicator Progress Bar - Clickable with validation gates */}
         <div className="bg-[#FFFFFF] px-5 py-2.5 border-b border-[#E8E4DF]">
           <div className="grid grid-cols-3 gap-2 text-center text-xs font-medium">
             {/* Shipping */}
-            <div
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all ${
+            <button
+              type="button"
+              id="step-nav-shipping"
+              onClick={() => handleStepNavigation(1)}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all cursor-pointer ${
                 currentStep === 1
                   ? 'bg-[#141312] text-white border-[#141312]'
                   : currentStep > 1
-                  ? 'bg-[#F5F3EF] text-[#141312] border-[#E8E4DF]'
-                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF]'
+                  ? 'bg-[#F5F3EF] text-[#141312] border-[#E8E4DF] hover:bg-[#ECE8E1]'
+                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF] hover:text-[#141312]'
               }`}
             >
               {currentStep > 1 ? (
@@ -498,16 +575,19 @@ export const CheckoutModal: React.FC = () => {
                 <Truck className="w-3.5 h-3.5" />
               )}
               <span>Shipping</span>
-            </div>
+            </button>
 
             {/* KYC */}
-            <div
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all ${
+            <button
+              type="button"
+              id="step-nav-kyc"
+              onClick={() => handleStepNavigation(2)}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all cursor-pointer ${
                 currentStep === 2
                   ? 'bg-[#141312] text-white border-[#141312]'
                   : currentStep > 2
-                  ? 'bg-[#F5F3EF] text-[#141312] border-[#E8E4DF]'
-                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF]'
+                  ? 'bg-[#F5F3EF] text-[#141312] border-[#E8E4DF] hover:bg-[#ECE8E1]'
+                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF] hover:text-[#141312]'
               }`}
             >
               {currentStep > 2 ? (
@@ -515,25 +595,28 @@ export const CheckoutModal: React.FC = () => {
               ) : (
                 <ShieldCheck className="w-3.5 h-3.5" />
               )}
-              <span>KYC Identity</span>
-            </div>
+              <span>KYC</span>
+            </button>
 
             {/* Payment */}
-            <div
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all ${
+            <button
+              type="button"
+              id="step-nav-payment"
+              onClick={() => handleStepNavigation(3)}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-all cursor-pointer ${
                 currentStep === 3
                   ? 'bg-[#141312] text-white border-[#141312]'
-                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF]'
+                  : 'bg-[#FAF9F6] text-[#948E88] border-[#E8E4DF] hover:text-[#141312]'
               }`}
             >
               <CreditCard className="w-3.5 h-3.5" />
               <span>Payment</span>
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+        <div ref={scrollContainerRef} className="p-5 overflow-y-auto space-y-4 flex-1">
           {/* ================= STEP 1: SHIPPING ================= */}
           {currentStep === 1 && (
             <div className="space-y-4 animate-fadeIn">
@@ -545,12 +628,9 @@ export const CheckoutModal: React.FC = () => {
 
                 {/* Legal Name Breakdown: First, Middle, Last */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854]">
-                      Renter Legal Name (as indicated on Government ID) *
-                    </label>
-                    <span className="text-[9px] text-[#948E88]">First, Middle, Last</span>
-                  </div>
+                  <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1.5">
+                    Renter Legal Name (as indicated on Government ID) *
+                  </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                     <div className="sm:col-span-5">
@@ -630,7 +710,7 @@ export const CheckoutModal: React.FC = () => {
 
                   <div>
                     <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                      Email Address
+                      Email Address *
                     </label>
                     <input
                       id="input-renter-email"
@@ -638,15 +718,23 @@ export const CheckoutModal: React.FC = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="renter@domain.ph"
-                      className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                      className={`w-full bg-[#FAF9F6] border ${
+                        errors.email ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                      } rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
                     />
+                    {errors.email && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.email}</p>
+                    )}
                   </div>
                 </div>
 
                 {/* Street Address / Unit / Building */}
                 <div>
                   <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                    Street Address / Unit / Building *
+                    <span>ADDRESS</span>
+                    <span className="block text-[9px] text-[#78716C] mt-0.5">
+                      NUMBER, STREET NAME, SUBDIVISION / BUILDING / APARTMENT *
+                    </span>
                   </label>
                   <textarea
                     id="input-renter-address"
@@ -673,14 +761,20 @@ export const CheckoutModal: React.FC = () => {
                       id="select-renter-province"
                       value={province}
                       onChange={(e) => handleProvinceChange(e.target.value)}
-                      className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                      className={`w-full bg-[#FAF9F6] border ${
+                        errors.province ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
                     >
+                      <option value="">Select</option>
                       {Object.keys(LALAMOVE_SERVICEABLE_LOCATIONS).map((prov) => (
                         <option key={prov} value={prov}>
                           {prov}
                         </option>
                       ))}
                     </select>
+                    {errors.province && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.province}</p>
+                    )}
                   </div>
 
                   <div>
@@ -691,13 +785,14 @@ export const CheckoutModal: React.FC = () => {
                       id="select-renter-city"
                       value={city}
                       onChange={(e) => handleCityChange(e.target.value)}
+                      disabled={!province}
                       className={`w-full bg-[#FAF9F6] border ${
                         errors.city ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
-                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
+                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                        !province ? 'opacity-60 cursor-not-allowed' : ''
+                      }`}
                     >
-                      {availableCities.includes(city) ? null : (
-                        <option value={city}>{city}</option>
-                      )}
+                      <option value="">Select</option>
                       {availableCities.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -711,7 +806,7 @@ export const CheckoutModal: React.FC = () => {
 
                   <div>
                     <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                      Postal Code
+                      Postal Code *
                     </label>
                     <input
                       id="input-renter-postal"
@@ -719,8 +814,13 @@ export const CheckoutModal: React.FC = () => {
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
                       placeholder="e.g. 1634"
-                      className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                      className={`w-full bg-[#FAF9F6] border ${
+                        errors.postalCode ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
                     />
+                    {errors.postalCode && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.postalCode}</p>
+                    )}
                   </div>
                 </div>
 
@@ -782,21 +882,14 @@ export const CheckoutModal: React.FC = () => {
           {currentStep === 2 && (
             <div className="space-y-4 animate-fadeIn">
               <div className="bg-[#FFFFFF] p-4 rounded-xl border border-[#E8E4DF] space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E8E4DF] pb-3">
-                  <div>
-                    <h3 className="font-serif text-sm font-semibold text-[#141312] flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 stroke-[1.5]" />
-                      <span>Renter Verification (KYC)</span>
-                    </h3>
-                    <p className="text-[11px] text-[#948E88]">
-                      Required for high-value designer garment security
-                    </p>
-                  </div>
-
-                  <span className="text-[10px] bg-[#F5F3EF] border border-[#E8E4DF] text-[#141312] px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                    <FileCheck className="w-3 h-3" />
-                    Encrypted Storage
-                  </span>
+                <div className="border-b border-[#E8E4DF] pb-3">
+                  <h3 className="font-serif text-sm font-semibold text-[#141312] flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 stroke-[1.5]" />
+                    <span>Renter Verification (KYC)</span>
+                  </h3>
+                  <p className="text-[11px] text-[#948E88]">
+                    Required for high-value designer garment security
+                  </p>
                 </div>
 
                 {/* ID Type Selector */}
@@ -831,7 +924,7 @@ export const CheckoutModal: React.FC = () => {
                   />
                 </div>
 
-                {/* Upload Zones: Front, Back, Live Selfie */}
+                {/* Upload Zones: Front and Back ID */}
                 <div className="space-y-3 pt-1">
                   {/* Front ID */}
                   <div className="bg-[#FAF9F6] border border-[#E8E4DF] rounded-lg p-3">
@@ -839,14 +932,6 @@ export const CheckoutModal: React.FC = () => {
                       <span className="text-xs font-medium text-[#141312]">
                         Front of {idType} *
                       </span>
-                      {frontIdImage ? (
-                        <span className="text-[10px] bg-[#141312] text-white px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          ID Received
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-[#B91C1C] font-medium">Required</span>
-                      )}
                     </div>
 
                     {frontIdImage ? (
@@ -863,6 +948,7 @@ export const CheckoutModal: React.FC = () => {
                             />
                           </label>
                           <button
+                            type="button"
                             onClick={() => setFrontIdImage('')}
                             className="p-1 bg-[#B91C1C] text-white rounded"
                           >
@@ -883,6 +969,9 @@ export const CheckoutModal: React.FC = () => {
                         />
                       </label>
                     )}
+                    {errors.frontId && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.frontId}</p>
+                    )}
                   </div>
 
                   {/* Back ID (Optional) */}
@@ -891,12 +980,6 @@ export const CheckoutModal: React.FC = () => {
                       <span className="text-xs font-medium text-[#141312]">
                         Back of Government ID (Optional)
                       </span>
-                      {backIdImage && (
-                        <span className="text-[10px] bg-[#141312] text-white px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Received
-                        </span>
-                      )}
                     </div>
 
                     {backIdImage ? (
@@ -913,6 +996,7 @@ export const CheckoutModal: React.FC = () => {
                             />
                           </label>
                           <button
+                            type="button"
                             onClick={() => setBackIdImage('')}
                             className="p-1 bg-[#B91C1C] text-white rounded"
                           >
@@ -933,58 +1017,6 @@ export const CheckoutModal: React.FC = () => {
                       </label>
                     )}
                   </div>
-
-                  {/* Live Selfie holding ID */}
-                  <div className="bg-[#FAF9F6] border border-[#E8E4DF] rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-[#141312]">
-                        Live Selfie Holding ID *
-                      </span>
-                      {selfieWithIdImage ? (
-                        <span className="text-[10px] bg-[#141312] text-white px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Selfie Verified
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-[#B91C1C] font-medium">Required</span>
-                      )}
-                    </div>
-
-                    {selfieWithIdImage ? (
-                      <div className="relative aspect-[3/4] w-full max-w-[130px] rounded-md overflow-hidden border border-[#E8E4DF] mx-auto group">
-                        <img src={selfieWithIdImage} alt="Selfie with ID" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <label className="px-2 py-0.5 bg-white text-[10px] font-medium rounded cursor-pointer text-[#141312]">
-                            Replace
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleFileUpload(e, setSelfieWithIdImage)}
-                            />
-                          </label>
-                          <button
-                            onClick={() => setSelfieWithIdImage('')}
-                            className="p-1 bg-[#B91C1C] text-white rounded"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="border border-dashed border-[#E8E4DF] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-colors">
-                        <Camera className="w-5 h-5 text-[#948E88] mb-1 stroke-[1.5]" />
-                        <span className="text-xs font-medium text-[#141312]">Take / Upload Selfie with ID</span>
-                        <span className="text-[10px] text-[#948E88]">Hold your ID clearly beside your face</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(e, setSelfieWithIdImage)}
-                        />
-                      </label>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -1000,7 +1032,7 @@ export const CheckoutModal: React.FC = () => {
                     Booking Summary
                   </span>
                   <span className="text-[10px] text-[#78716C]">
-                    {cart.length} Designer {cart.length === 1 ? 'Garment' : 'Garments'}
+                    {cart.length} {cart.length === 1 ? 'Garment' : 'Garments'}
                   </span>
                 </div>
 
@@ -1045,16 +1077,13 @@ export const CheckoutModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment Rail Tabs: GCash vs Direct Bank Transfer */}
+              {/* Payment Rail Tabs: GCash vs Bank Transfer */}
               <div className="bg-[#FFFFFF] p-4 rounded-xl border border-[#E8E4DF] space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E8E4DF] pb-3">
+                <div className="border-b border-[#E8E4DF] pb-3">
                   <h3 className="font-serif text-sm font-semibold text-[#141312] flex items-center gap-1.5">
                     <CreditCard className="w-4 h-4 stroke-[1.5]" />
-                    <span>Philippine Payment Rails</span>
+                    <span>Payment Options</span>
                   </h3>
-                  <span className="font-serif text-sm font-semibold text-[#141312]">
-                    Amount Due: {formatPHP(grandTotal)}
-                  </span>
                 </div>
 
                 {/* Tabs */}
@@ -1062,7 +1091,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('gcash')}
-                    className={`py-1.5 text-xs font-medium rounded transition-all flex items-center justify-center gap-1.5 ${
+                    className={`py-1.5 text-xs font-medium rounded transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       paymentMethod === 'gcash'
                         ? 'bg-[#141312] text-white'
                         : 'text-[#5C5854] hover:text-[#141312]'
@@ -1074,13 +1103,13 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('bank_transfer')}
-                    className={`py-1.5 text-xs font-medium rounded transition-all flex items-center justify-center gap-1.5 ${
+                    className={`py-1.5 text-xs font-medium rounded transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       paymentMethod === 'bank_transfer'
                         ? 'bg-[#141312] text-white'
                         : 'text-[#5C5854] hover:text-[#141312]'
                     }`}
                   >
-                    <span>Direct Bank Transfer</span>
+                    <span>Bank Transfer</span>
                   </button>
                 </div>
 
@@ -1088,14 +1117,22 @@ export const CheckoutModal: React.FC = () => {
                 {paymentMethod === 'gcash' && (
                   <div className="space-y-3 pt-1">
                     <div className="bg-[#FAF9F6] border border-[#E8E4DF] p-4 rounded-lg flex flex-col sm:flex-row items-center gap-4">
-                      {/* Merchant QR Code simulation */}
-                      <div className="w-28 h-28 bg-white p-2 rounded-md border border-[#E8E4DF] flex flex-col items-center justify-center shrink-0">
-                        <div className="w-full h-full bg-[#FAF9F6] rounded flex flex-col items-center justify-center p-2 text-center">
-                          <QrCode className="w-10 h-10 text-[#141312] mb-1 stroke-[1.5]" />
-                          <span className="text-[8px] font-medium text-[#5C5854] tracking-wider uppercase">
-                            Scan GCash QR
-                          </span>
-                        </div>
+                      {/* Merchant QR Code simulation or uploaded QR */}
+                      <div className="w-28 h-28 bg-white p-2 rounded-md border border-[#E8E4DF] flex flex-col items-center justify-center shrink-0 overflow-hidden">
+                        {checkoutConfig?.gcash?.qrCodeImageUrl ? (
+                          <img
+                            src={checkoutConfig.gcash.qrCodeImageUrl}
+                            alt="GCash QR Code"
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-[#FAF9F6] rounded flex flex-col items-center justify-center p-2 text-center">
+                            <QrCode className="w-10 h-10 text-[#141312] mb-1 stroke-[1.5]" />
+                            <span className="text-[8px] font-medium text-[#5C5854] tracking-wider uppercase">
+                              Scan GCash QR
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Account Details */}
@@ -1105,7 +1142,7 @@ export const CheckoutModal: React.FC = () => {
                             Merchant Name
                           </span>
                           <p className="font-semibold text-[#141312]">
-                            ATELIER LUXE COUTURE INC
+                            {checkoutConfig?.gcash?.merchantName || 'ATELIER LUXE COUTURE INC'}
                           </p>
                         </div>
 
@@ -1115,12 +1152,12 @@ export const CheckoutModal: React.FC = () => {
                           </span>
                           <div className="flex items-center justify-center sm:justify-start gap-2">
                             <span className="font-mono font-medium text-xs text-[#141312]">
-                              0917 888 2345
+                              {checkoutConfig?.gcash?.accountNumber || '0917 888 2345'}
                             </span>
                             <button
                               type="button"
-                              onClick={() => copyToClipboard('09178882345')}
-                              className="p-1 text-[#948E88] hover:text-[#141312] rounded"
+                              onClick={() => copyToClipboard(checkoutConfig?.gcash?.accountNumber || '09178882345')}
+                              className="p-1 text-[#948E88] hover:text-[#141312] rounded cursor-pointer"
                               title="Copy Number"
                             >
                               <Copy className="w-3.5 h-3.5" />
@@ -1131,7 +1168,8 @@ export const CheckoutModal: React.FC = () => {
                         <p className="text-[10px] text-[#5C5854]">
                           Exact amount to send: <strong className="text-[#141312]">{formatPHP(grandTotal)}</strong>
                           <span className="block text-[9px] text-[#948E88] mt-0.5">
-                            (Covers rental & security deposit; Lalamove delivery is paid directly by renter upon dispatch)
+                            {checkoutConfig?.gcash?.instructions ||
+                              '(Covers rental & security deposit; Lalamove delivery is paid directly by renter upon dispatch)'}
                           </span>
                         </p>
                       </div>
@@ -1147,55 +1185,61 @@ export const CheckoutModal: React.FC = () => {
                         Select Destination Bank
                       </label>
                       <select
-                        value={selectedBank}
-                        onChange={(e) => setSelectedBank(e.target.value as BankName)}
+                        value={selectedBankId}
+                        onChange={(e) => setSelectedBankId(e.target.value)}
                         className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
                       >
-                        <option value="BDO">BDO Unibank (Banco de Oro)</option>
-                        <option value="BPI">Bank of the Philippine Islands (BPI)</option>
-                        <option value="UnionBank">UnionBank of the Philippines</option>
+                        {checkoutConfig?.bankTransfer?.accounts?.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.bankName}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    <div className="bg-[#FAF9F6] border border-[#E8E4DF] p-3 rounded-lg space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#5C5854]">Account Name:</span>
-                        <span className="font-medium text-[#141312]">
-                          SINTA WARDROBE RENTAL INC.
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#5C5854]">Account Number:</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-medium text-[#141312]">
-                            {selectedBank === 'BDO'
-                              ? '0019 8273 4401'
-                              : selectedBank === 'BPI'
-                              ? '3890 1204 88'
-                              : '1098 7765 2200'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              copyToClipboard(
-                                selectedBank === 'BDO'
-                                  ? '001982734401'
-                                  : selectedBank === 'BPI'
-                                  ? '3890120488'
-                                  : '109877652200'
-                              )
-                            }
-                            className="text-[#948E88] hover:text-[#141312]"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
+                    {(() => {
+                      const activeAcc =
+                        checkoutConfig?.bankTransfer?.accounts?.find((a) => a.id === selectedBankId) ||
+                        checkoutConfig?.bankTransfer?.accounts?.[0];
+                      if (!activeAcc) return null;
+                      return (
+                        <div className="bg-[#FAF9F6] border border-[#E8E4DF] p-3 rounded-lg space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#5C5854]">Account Name:</span>
+                            <span className="font-medium text-[#141312]">
+                              {activeAcc.accountName}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#5C5854]">Account Number:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-medium text-[#141312]">
+                                {activeAcc.accountNumber}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(activeAcc.accountNumber)}
+                                className="text-[#948E88] hover:text-[#141312] cursor-pointer"
+                                title="Copy Account Number"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {activeAcc.branch && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#5C5854]">Branch / Remarks:</span>
+                              <span className="text-[#141312]">{activeAcc.branch}</span>
+                            </div>
+                          )}
+                          {checkoutConfig?.bankTransfer?.instructions && (
+                            <p className="text-[10px] text-[#948E88] pt-1.5 border-t border-[#E8E4DF]/60">
+                              {checkoutConfig.bankTransfer.instructions}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#5C5854]">Branch:</span>
-                        <span className="text-[#141312]">BGC High Street Branch</span>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1246,6 +1290,7 @@ export const CheckoutModal: React.FC = () => {
                           />
                         </label>
                         <button
+                          type="button"
                           onClick={() => setReceiptImage('')}
                           className="p-1 bg-[#B91C1C] text-white rounded"
                         >
@@ -1268,31 +1313,57 @@ export const CheckoutModal: React.FC = () => {
                   )}
                 </div>
 
-                {/* Rental Agreement Checkbox */}
-                <div className="pt-2 border-t border-[#E8E4DF]">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      id="checkbox-terms-waiver"
-                      type="checkbox"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      className="mt-0.5 w-3.5 h-3.5 accent-[#141312] rounded border-[#E8E4DF]"
-                    />
-                    <div className="text-xs text-[#5C5854]">
-                      <span>I agree to the </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsAgreementOpen(true)}
-                        className="text-[#141312] font-medium underline"
-                      >
-                        Rental Agreement & Damage Liability Waiver
-                      </button>
-                      <span> and understand the 4–14 day policy and deposit terms.</span>
-                    </div>
-                  </label>
-                  {errors.terms && (
-                    <p className="text-[10px] text-[#B91C1C] mt-1">{errors.terms}</p>
-                  )}
+                {/* Legal Checkboxes: Terms & Privacy Policy */}
+                <div className="pt-2 border-t border-[#E8E4DF] space-y-2.5">
+                  <div>
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        id="checkbox-terms-waiver"
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-0.5 w-3.5 h-3.5 accent-[#141312] rounded border-[#E8E4DF]"
+                      />
+                      <div className="text-xs text-[#5C5854]">
+                        <span>I have read and agree to the </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsAgreementOpen(true)}
+                          className="text-[#141312] font-medium underline cursor-pointer"
+                        >
+                          Terms of Service and Rental Agreement
+                        </button>
+                      </div>
+                    </label>
+                    {errors.terms && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.terms}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        id="checkbox-privacy-policy"
+                        type="checkbox"
+                        checked={agreedToPrivacy}
+                        onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                        className="mt-0.5 w-3.5 h-3.5 accent-[#141312] rounded border-[#E8E4DF]"
+                      />
+                      <div className="text-xs text-[#5C5854]">
+                        <span>I have read and agree to the </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsPrivacyOpen(true)}
+                          className="text-[#141312] font-medium underline cursor-pointer"
+                        >
+                          Privacy Policy
+                        </button>
+                      </div>
+                    </label>
+                    {errors.privacy && (
+                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.privacy}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1305,8 +1376,11 @@ export const CheckoutModal: React.FC = () => {
             <button
               id="btn-checkout-prev"
               type="button"
-              onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
-              className="h-10 px-4 rounded-md border border-[#E8E4DF] bg-white text-xs font-medium text-[#141312] hover:bg-[#FAF9F6] flex items-center gap-1.5 transition-colors"
+              onClick={() => {
+                setCurrentStep((prev) => (prev - 1) as any);
+                scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+              className="h-10 px-4 rounded-md border border-[#E8E4DF] bg-white text-xs font-medium text-[#141312] hover:bg-[#FAF9F6] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Previous</span>
@@ -1323,14 +1397,18 @@ export const CheckoutModal: React.FC = () => {
               id="btn-checkout-next"
               type="button"
               onClick={() => {
-                if (currentStep === 1 && validateStep1()) setCurrentStep(2);
-                if (currentStep === 2 && validateStep2()) setCurrentStep(3);
+                if (currentStep === 1 && validateStep1()) {
+                  setCurrentStep(2);
+                  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+                }
+                if (currentStep === 2 && validateStep2()) {
+                  setCurrentStep(3);
+                  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+                }
               }}
-              className="h-10 px-5 rounded-md bg-[#141312] hover:bg-[#2A2725] text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="h-10 px-5 rounded-md bg-[#141312] hover:bg-[#2A2725] text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <span>
-                {currentStep === 1 ? 'Continue to Identity Verification' : 'Continue to Payment'}
-              </span>
+              <span>Continue</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           ) : (
@@ -1338,9 +1416,9 @@ export const CheckoutModal: React.FC = () => {
               id="btn-checkout-submit"
               type="button"
               onClick={handleSubmitBooking}
-              className="h-10 px-5 rounded-md bg-[#141312] hover:bg-[#2A2725] text-white text-xs font-medium flex items-center gap-2 active:scale-95 transition-all"
+              className="h-10 px-5 rounded-md bg-[#141312] hover:bg-[#2A2725] text-white text-xs font-medium flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
             >
-              <span>Submit Booking & Proof ({formatPHP(grandTotal)})</span>
+              <span>Submit</span>
             </button>
           )}
         </div>
@@ -1351,6 +1429,17 @@ export const CheckoutModal: React.FC = () => {
         isOpen={isAgreementOpen}
         onClose={() => setIsAgreementOpen(false)}
         onAgree={() => setAgreedToTerms(true)}
+        title={checkoutConfig?.termsTitle}
+        content={checkoutConfig?.termsContent}
+      />
+
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal
+        isOpen={isPrivacyOpen}
+        onClose={() => setIsPrivacyOpen(false)}
+        onAgree={() => setAgreedToPrivacy(true)}
+        title={checkoutConfig?.privacyTitle}
+        content={checkoutConfig?.privacyContent}
       />
     </div>
   );

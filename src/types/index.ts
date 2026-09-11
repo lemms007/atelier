@@ -223,14 +223,41 @@ export interface KYCData {
   idType: GovernmentIdType;
   frontIdImage: string;
   backIdImage?: string;
-  selfieWithIdImage: string;
+  selfieWithIdImage?: string;
   idNumber?: string;
   uploadedAt: string;
   isVerified?: boolean;
 }
 
 export type PaymentMethod = 'gcash' | 'bank_transfer';
-export type BankName = 'BPI' | 'BDO' | 'UnionBank';
+export type BankName = 'BPI' | 'BDO' | 'UnionBank' | string;
+
+export interface BankAccountConfig {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branch?: string;
+}
+
+export interface GCashConfig {
+  merchantName: string;
+  accountNumber: string;
+  qrCodeImageUrl?: string;
+  instructions?: string;
+}
+
+export interface CheckoutConfig {
+  gcash: GCashConfig;
+  bankTransfer: {
+    accounts: BankAccountConfig[];
+    instructions?: string;
+  };
+  termsTitle: string;
+  termsContent: string;
+  privacyTitle: string;
+  privacyContent: string;
+}
 
 export interface PaymentData {
   method: PaymentMethod;
@@ -248,7 +275,7 @@ export type DeliveryMethod = 'lalamove' | 'same_day_courier' | 'express_provinci
 export type ViewMode = 'user' | 'admin';
 export type CustomerTab = 'explore' | 'cart' | 'my-rentals' | 'profile';
 export type RentalsFilterType = 'all' | 'current' | 'previous';
-export type AdminTab = 'verification' | 'inventory' | 'ledger';
+export type AdminTab = 'verification' | 'inventory' | 'ledger' | 'settings';
 
 export interface Admin2FAEmail {
   to: string;

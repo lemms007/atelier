@@ -20,6 +20,7 @@ import {
   UserProfile,
   UserMeasurements,
   RentalPricingConfig,
+  CheckoutConfig,
 } from '../types';
 import { MOCK_GARMENTS } from '../data/garments';
 import { INITIAL_MOCK_ORDERS } from '../data/initialOrders';
@@ -36,6 +37,13 @@ import {
   fetchRentalPricingConfigFromFirestore,
   saveRentalPricingConfigToFirestore,
 } from '../services/firestoreProducts';
+import {
+  getCachedCheckoutConfig,
+  setCachedCheckoutConfig,
+  fetchCheckoutConfigFromFirestore,
+  saveCheckoutConfigToFirestore,
+  DEFAULT_CHECKOUT_CONFIG,
+} from '../services/firestoreConfig';
 import { auth, signInWithGoogle, signOutCurrentUser } from '../firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import {
@@ -120,6 +128,11 @@ interface AppContextType {
   updateRentalPricingConfig: (updates: Partial<RentalPricingConfig>) => Promise<void>;
   configuredDurations: number[];
   setConfiguredDurations: (durations: number[]) => void;
+
+  // Configurable Checkout & Payment Details & Legal Content
+  checkoutConfig: CheckoutConfig;
+  updateCheckoutConfig: (updates: Partial<CheckoutConfig>) => Promise<void>;
+  resetCheckoutConfigToDefaults: () => Promise<void>;
 
   // Garments / Products data from Firestore
   garments: Garment[];
@@ -542,6 +555,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .catch(() => {});
   }, []);
+
+  // Configurable Checkout Details (GCash, Bank Accounts, Terms, Privacy Policy)
+  const [checkoutConfig, setCheckoutConfig] = useState<CheckoutConfig>(() => getCachedCheckoutConfig());
+
+  useEffect(() => {
+    fetchCheckoutConfigFromFirestore()
+      .then((remote) => {
+        if (remote) {
+          setCheckoutConfig(remote);
+        }
+      })
+      .catch((err) => {
+        console.warn('[AppContext] Could not fetch remote checkout config:', err);
+      });
+  }, []);
+
+  const updateCheckoutConfig = async (updates: Partial<CheckoutConfig>) => {
+    const updated: CheckoutConfig = {
+      ...checkoutConfig,
+      ...updates,
+      gcash: {
+        ...checkoutConfig.gcash,
+        ...(updates.gcash || {}),
+      },
+      bankTransfer: {
+        ...checkoutConfig.bankTransfer,
+        ...(updates.bankTransfer || {}),
+        accounts: updates.bankTransfer?.accounts || checkoutConfig.bankTransfer.accounts,
+      },
+    };
+    setCheckoutConfig(updated);
+    setCachedCheckoutConfig(updated);
+    await saveCheckoutConfigToFirestore(updated);
+    showToast('Saved checkout and payment settings.');
+  };
+
+  const resetCheckoutConfigToDefaults = async () => {
+    setCheckoutConfig(DEFAULT_CHECKOUT_CONFIG);
+    setCachedCheckoutConfig(DEFAULT_CHECKOUT_CONFIG);
+    await saveCheckoutConfigToFirestore(DEFAULT_CHECKOUT_CONFIG);
+    showToast('Reset checkout settings to default templates.');
+  };
 
   // Garments / Products state initialized immediately from cached storage or live Firestore
   const [garments, setGarments] = useState<Garment[]>(() => {
@@ -970,6 +1025,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateRentalPricingConfig,
         configuredDurations,
         setConfiguredDurations,
+        checkoutConfig,
+        updateCheckoutConfig,
+        resetCheckoutConfigToDefaults,
         garments,
         categories,
         stores,

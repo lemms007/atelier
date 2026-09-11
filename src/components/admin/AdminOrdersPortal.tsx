@@ -5,6 +5,7 @@ import { RentalOrder, OrderStatus } from '../../types';
 import { formatPHP, formatDisplayDateShort, formatFullName } from '../../utils/formatters';
 import { AdminInventoryView } from './AdminInventoryView';
 import { AdminLedgerView } from './AdminLedgerView';
+import { AdminSettingsView } from './AdminSettingsView';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -61,6 +62,10 @@ export const AdminOrdersPortal: React.FC = () => {
 
   if (adminTab === 'ledger') {
     return <AdminLedgerView />;
+  }
+
+  if (adminTab === 'settings') {
+    return <AdminSettingsView />;
   }
 
   const filteredOrders = orders.filter((o) => {

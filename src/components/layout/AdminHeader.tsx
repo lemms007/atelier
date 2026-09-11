@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, ArrowLeft, Layers, Landmark, Lock, LogOut } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Layers, Landmark, Lock, LogOut, Sliders } from 'lucide-react';
 import { AdminTab } from '../../types';
 
 export const AdminHeader: React.FC = () => {
@@ -21,6 +21,7 @@ export const AdminHeader: React.FC = () => {
     { id: 'verification', label: 'KYC & Verification Queue', icon: ShieldCheck },
     { id: 'inventory', label: 'Inventory & Rates', icon: Layers },
     { id: 'ledger', label: 'Escrow & Revenue', icon: Landmark },
+    { id: 'settings', label: 'Payment & Policy Config', icon: Sliders },
   ];
 
   return (

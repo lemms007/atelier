@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, ShieldCheck, FileText, CheckCircle2 } from 'lucide-react';
+import { X, ShieldCheck, FileCheck, CheckCircle2 } from 'lucide-react';
 
-interface RentalAgreementModalProps {
+interface PrivacyPolicyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAgree: () => void;
@@ -9,11 +9,11 @@ interface RentalAgreementModalProps {
   content?: string;
 }
 
-export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
+export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   isOpen,
   onClose,
   onAgree,
-  title = 'Terms of Service and Rental Agreement',
+  title = 'Privacy Policy',
   content,
 }) => {
   if (!isOpen) return null;
@@ -24,7 +24,7 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-[#E8E4DF] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-[#141312] stroke-[1.5]" />
+            <FileCheck className="w-4 h-4 text-[#141312] stroke-[1.5]" />
             <h3 className="font-serif text-base font-semibold text-[#141312]">
               {title}
             </h3>
@@ -38,11 +38,11 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Terms Content */}
+        {/* Scrollable Privacy Content */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs text-[#5C5854] leading-relaxed">
           <div className="bg-[#F5F3EF] p-3 rounded-lg border border-[#E8E4DF] flex items-center gap-2 text-[#141312] font-medium">
             <ShieldCheck className="w-4 h-4 text-[#141312] stroke-[1.5]" />
-            <span>Sinta Wardrobe Rental Certified Terms</span>
+            <span>Republic Act No. 10173 Data Privacy Compliance</span>
           </div>
 
           {content ? (
@@ -53,46 +53,46 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
             <>
               <div>
                 <h4 className="font-semibold text-[#141312] text-xs mb-1">
-                  1. 4 to 14-Day Rental Window
+                  1. Collection of Personal Information
                 </h4>
                 <p>
-                  Day 1 commences upon receipt of the garment via our designated courier. The final day signifies the scheduled pickup by our return courier. Extensions must be requested 48 hours prior and are subject to availability.
+                  In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173), Sinta Wardrobe Rental collects personal information including your full legal name, delivery address, mobile contact number, email address, and government identification strictly for verifying high-value designer garment rentals.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-[#141312] text-xs mb-1">
-                  2. Care & Prohibited Alterations
+                  2. Identity Verification (KYC)
                 </h4>
                 <p>
-                  Renters may NOT perform permanent alterations, hem cuts, pin adjustments with non-silk pins, iron on delicate organza, or attempt home washing. All garments are sanitized through our specialized dry cleaning partners.
+                  Uploaded government identification documents are accessed exclusively by authorized concierge verification officers to authenticate identity and prevent fraudulent bookings. We do not sell, disclose, or transfer your identification records to third-party advertisers.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-[#141312] text-xs mb-1">
-                  3. Minor Wear vs. Major Damage
+                  3. Payment Data Security
                 </h4>
                 <p>
-                  Standard wear (minor cosmetic hem dust, removable beverage splatters) is 100% covered by Sinta Insurance. Irreparable tears, severe burns, cigarette marks, or theft will forfeit the security deposit and may incur up to the full retail replacement value.
+                  Payment proofs, transaction reference codes, and banking details are recorded solely for escrow auditing, payment confirmation, and processing security deposit refunds upon return of the rented pieces.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-[#141312] text-xs mb-1">
-                  4. 100% Security Deposit Refund Policy
+                  4. Data Retention and Storage
                 </h4>
                 <p>
-                  Refundable deposits are remitted to your original GCash or Bank account within 24 hours of our physical garment check in Manila.
+                  Your personal records and order history are securely maintained in protected cloud infrastructure with restricted role-based administrative access. You may request data rectification or account profile deletion at any time by contacting concierge@sinta-rentals.ph.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-[#141312] text-xs mb-1">
-                  5. KYC Verification Consent
+                  5. Your Data Subject Rights
                 </h4>
                 <p>
-                  Your uploaded government identification is utilized strictly for rental identity verification in compliance with Republic Act No. 10173 (Data Privacy Act of 2012).
+                  As a data subject, you have the right to be informed, access, rectify, erase, or object to the processing of your personal data under Philippine data privacy regulations.
                 </p>
               </div>
             </>
@@ -109,7 +109,7 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
             Close
           </button>
           <button
-            id="btn-agree-waiver"
+            id="btn-agree-privacy"
             type="button"
             onClick={() => {
               onAgree();
