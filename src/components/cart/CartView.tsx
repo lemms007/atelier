@@ -22,6 +22,7 @@ export const CartView: React.FC = () => {
     setIsCheckoutOpen,
     setActiveTab,
     setSelectedGarment,
+    openFaqModal,
   } = useApp();
 
   // Courier shipping is calculated live via the Lalamove app and shouldered directly by the renter
@@ -220,11 +221,22 @@ export const CartView: React.FC = () => {
         </div>
 
         {/* Deposit Trust Guarantee */}
-        <div className="bg-[#F5F3EF] border border-[#E8E4DF] rounded-lg p-3 flex items-start gap-2 text-[11px] text-[#5C5854]">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#141312] shrink-0 mt-0.5 stroke-[1.5]" />
-          <p>
-            <strong className="text-[#141312]">Sinta Guarantee:</strong> Your 50% refundable amount of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
-          </p>
+        <div className="bg-[#F5F3EF] border border-[#E8E4DF] rounded-lg p-3 flex items-start justify-between gap-2 text-[11px] text-[#5C5854]">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#141312] shrink-0 mt-0.5 stroke-[1.5]" />
+            <p>
+              <strong className="text-[#141312]">Sinta Guarantee:</strong> Your 50% refundable amount of {formatPHP(cartDepositSubtotal)} is returned within 24 hours of garment return inspection.
+            </p>
+          </div>
+          <button
+            type="button"
+            id="btn-cart-deposit-faq"
+            onClick={() => openFaqModal('deposits')}
+            className="text-[#80232F] hover:underline font-medium shrink-0 ml-1 cursor-pointer whitespace-nowrap"
+            title="Read security deposit FAQs"
+          >
+            Deposit FAQs
+          </button>
         </div>
       </div>
 

@@ -247,6 +247,13 @@ export interface GCashConfig {
   instructions?: string;
 }
 
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  category?: 'booking' | 'deposits' | 'sizing' | 'cleaning' | 'shipping' | 'general';
+}
+
 export interface CheckoutConfig {
   gcash: GCashConfig;
   bankTransfer: {
@@ -257,6 +264,7 @@ export interface CheckoutConfig {
   termsContent: string;
   privacyTitle: string;
   privacyContent: string;
+  faqs?: FAQItem[];
 }
 
 export interface PaymentData {

@@ -27,6 +27,10 @@ import {
   Check,
   CheckCircle2,
   Calendar as CalendarIcon,
+  HelpCircle,
+  ShieldCheck,
+  Truck,
+  Sparkles,
 } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { preloadGarmentVariationImages } from '../../utils/imageCache';
@@ -60,6 +64,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     rentalPricingConfig,
     garmentSelections,
     setGarmentSelection,
+    openFaqModal,
   } = useApp();
 
   const durationOptions = configuredDurations && configuredDurations.length > 0
@@ -619,6 +624,79 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 {garment.description}
               </p>
             </div>
+
+            {/* Atelier Rental Guarantees & JIT FAQs */}
+            <div className="bg-[#FAF9F6] p-4 rounded-xl border border-[#E8E4DF] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-serif text-xs font-semibold text-[#141312] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#141312]" />
+                  <span>Atelier Guarantees & Rental Policy</span>
+                </span>
+                <button
+                  type="button"
+                  id="btn-pdp-faq-link"
+                  onClick={() => openFaqModal()}
+                  className="text-[11px] font-medium text-[#80232F] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <HelpCircle className="w-3 h-3" />
+                  <span>View All FAQs</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => openFaqModal('cleaning')}
+                  className="p-2.5 bg-white rounded-lg border border-[#E8E4DF] text-left hover:border-[#141312]/40 transition-all cursor-pointer flex items-start gap-2"
+                  title="View care & dry cleaning rules"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#80232F] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-[11px] text-[#141312] block">Complimentary Cleaning</span>
+                    <span className="text-[10px] text-[#5C5854] block">Handled by our master conservators; do not wash at home.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openFaqModal('deposits')}
+                  className="p-2.5 bg-white rounded-lg border border-[#E8E4DF] text-left hover:border-[#141312]/40 transition-all cursor-pointer flex items-start gap-2"
+                  title="View security deposit policy"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#80232F] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-[11px] text-[#141312] block">100% Refundable Deposit</span>
+                    <span className="text-[10px] text-[#5C5854] block">Remitted within 24h of return verification.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openFaqModal('shipping')}
+                  className="p-2.5 bg-white rounded-lg border border-[#E8E4DF] text-left hover:border-[#141312]/40 transition-all cursor-pointer flex items-start gap-2"
+                  title="View delivery and return logistics"
+                >
+                  <Truck className="w-3.5 h-3.5 text-[#80232F] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-[11px] text-[#141312] block">White-Glove Courier</span>
+                    <span className="text-[10px] text-[#5C5854] block">Delivered in protective hanging garment luggage.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openFaqModal('booking')}
+                  className="p-2.5 bg-white rounded-lg border border-[#E8E4DF] text-left hover:border-[#141312]/40 transition-all cursor-pointer flex items-start gap-2"
+                  title="View booking and date calculation rules"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-[#80232F] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-[11px] text-[#141312] block">Flexible 4–14 Days</span>
+                    <span className="text-[10px] text-[#5C5854] block">Arrival on Day 1 to return courier collection.</span>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Column 2: Styled directly after VariationSelectModal ("Add to Bag" dialog) */}
@@ -797,7 +875,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </div>
 
                   {/* Price and Refundable Breakdown */}
-                  <div className="flex flex-wrap items-baseline justify-between gap-1.5 p-2.5 bg-[#FAF9F6] rounded-xl border border-[#E8E4DF] mt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 p-2.5 bg-[#FAF9F6] rounded-xl border border-[#E8E4DF] mt-2">
                     <div className="flex items-baseline gap-1.5">
                       <span className="font-serif text-base sm:text-lg font-bold text-[#141312]">
                         {formatPHP(rentalPrice)}
@@ -806,9 +884,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         for {durationDays} days
                       </span>
                     </div>
-                    <span className="text-[11px] text-[#5C5854]">
-                      ({formatPHP(securityDeposit)} refundable · 50%)
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openFaqModal('deposits')}
+                      className="text-[11px] text-[#5C5854] hover:text-[#141312] underline decoration-[#948E88] flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Learn about security deposit and refund process"
+                    >
+                      <span>({formatPHP(securityDeposit)} refundable · 50%)</span>
+                      <HelpCircle className="w-3 h-3 text-[#948E88]" />
+                    </button>
                   </div>
                 </div>
 

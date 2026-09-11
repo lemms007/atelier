@@ -67,22 +67,35 @@ export const ConciergeModal: React.FC<ConciergeModalProps> = ({
           </div>
 
           {/* Quick Channels */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <button
-              onClick={() => handleSendMessage('whatsapp')}
-              className="py-2.5 px-3 bg-[#141312] hover:bg-[#2A2725] text-white font-medium text-xs rounded-md flex items-center justify-center gap-1.5 transition-colors"
+          <div className="space-y-2 pt-1">
+            <a
+              id="btn-modal-fb-chat"
+              href="https://www.facebook.com/profile.php?id=61594416564619"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 px-3 bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium text-xs rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>WhatsApp</span>
-            </button>
+              <span>Chat with us on Facebook</span>
+            </a>
 
-            <button
-              onClick={() => handleSendMessage('viber')}
-              className="py-2.5 px-3 bg-white border border-[#E8E4DF] hover:bg-[#FAF9F6] text-[#141312] font-medium text-xs rounded-md flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>Viber Chat</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleSendMessage('whatsapp')}
+                className="py-2 px-3 bg-[#FAF9F6] border border-[#E8E4DF] hover:bg-[#F5F3EF] text-[#141312] font-medium text-xs rounded-md flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => handleSendMessage('viber')}
+                className="py-2 px-3 bg-[#FAF9F6] border border-[#E8E4DF] hover:bg-[#F5F3EF] text-[#141312] font-medium text-xs rounded-md flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5 stroke-[1.5]" />
+                <span>Viber</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

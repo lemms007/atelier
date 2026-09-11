@@ -38,6 +38,8 @@ export const ProfileView: React.FC = () => {
     updateUserProfile,
     isAuthLoading,
     showToast,
+    faqs,
+    openFaqModal,
   } = useApp();
 
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
@@ -193,29 +195,6 @@ export const ProfileView: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  const faqs = [
-    {
-      q: 'How does optional Google Registration work?',
-      a: 'Registering with Google links your profile in our Firestore database. Your delivery address, Philippine government ID credentials, and measurements are securely stored so you never have to re-enter them on future rentals.',
-    },
-    {
-      q: 'How does the 4 to 14-day rental window work?',
-      a: 'Day 1 is your delivery date when our courier arrives with your dress in specialized hanging garment luggage. The final day (Day 4 up to Day 14) is when our return courier arrives to collect the package.',
-    },
-    {
-      q: 'Do I need to dry clean the garment before returning?',
-      a: 'Never! Complimentary professional dry cleaning and sanitization by our certified atelier textile conservators is included in every rental. Please do not wash or iron at home.',
-    },
-    {
-      q: 'When is my refundable security deposit returned?',
-      a: 'Your security deposit is remitted back to your original GCash or Bank Transfer account within 24 hours of our Manila team verifying the garment on return.',
-    },
-    {
-      q: 'What areas in the Philippines are covered for delivery?',
-      a: 'We offer white-glove same-day courier dispatch across Metro Manila (BGC, Makati, Ortigas, Alabang, QC) and express insured courier across Luzon, Visayas, and Mindanao.',
-    },
-  ];
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 pb-32 space-y-5 animate-fadeIn">
@@ -779,33 +758,59 @@ export const ProfileView: React.FC = () => {
 
       {/* FAQ & Guidelines Accordion */}
       <div className="bg-[#FFFFFF] rounded-xl border border-[#E8E4DF] p-4 space-y-3">
-        <h3 className="font-serif text-xs font-semibold text-[#141312] flex items-center gap-1.5 border-b border-[#E8E4DF] pb-2.5">
-          <HelpCircle className="w-3.5 h-3.5 text-[#141312] stroke-[1.5]" />
-          <span>Sinta Wardrobe Rental FAQs & Policy</span>
-        </h3>
+        <div className="flex items-center justify-between border-b border-[#E8E4DF] pb-2.5">
+          <h3 className="font-serif text-xs font-semibold text-[#141312] flex items-center gap-1.5">
+            <HelpCircle className="w-3.5 h-3.5 text-[#141312] stroke-[1.5]" />
+            <span>Sinta Wardrobe Rental FAQs & Policy</span>
+          </h3>
+          <button
+            type="button"
+            id="btn-profile-open-faqs"
+            onClick={() => openFaqModal()}
+            className="text-[11px] font-medium text-[#80232F] hover:underline cursor-pointer flex items-center gap-1"
+          >
+            <span>Search & View All</span>
+          </button>
+        </div>
 
         <div className="divide-y divide-[#E8E4DF]">
-          {faqs.map((faq, idx) => (
-            <div key={idx} className="py-2.5">
+          {faqs.slice(0, 5).map((faq, idx) => (
+            <div key={faq.id || idx} className="py-2.5">
               <button
+                type="button"
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
                 className="w-full flex items-center justify-between text-left text-xs font-medium text-[#141312] hover:text-[#5C5854] transition-colors cursor-pointer"
               >
-                <span>{faq.q}</span>
+                <div className="flex items-center gap-2 pr-2">
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-[#80232F] bg-[#80232F]/10 px-1.5 py-0.5 rounded shrink-0">
+                    {faq.category || 'general'}
+                  </span>
+                  <span className="font-serif text-xs font-semibold text-[#141312]">{faq.question}</span>
+                </div>
                 {openFaq === idx ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-[#948E88]" />
+                  <ChevronUp className="w-3.5 h-3.5 text-[#948E88] shrink-0" />
                 ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-[#948E88]" />
+                  <ChevronDown className="w-3.5 h-3.5 text-[#948E88] shrink-0" />
                 )}
               </button>
               {openFaq === idx && (
-                <p className="text-xs text-[#5C5854] mt-2 leading-relaxed pl-1">
-                  {faq.a}
+                <p className="text-xs text-[#5C5854] mt-2 leading-relaxed pl-1 whitespace-pre-line">
+                  {faq.answer}
                 </p>
               )}
             </div>
           ))}
         </div>
+
+        {faqs.length > 5 && (
+          <button
+            type="button"
+            onClick={() => openFaqModal()}
+            className="w-full py-2 text-center text-xs font-medium text-[#141312] bg-[#FAF9F6] hover:bg-[#F5F3EF] border border-[#E8E4DF] rounded-lg transition-colors cursor-pointer mt-1"
+          >
+            View all {faqs.length} FAQs & Guidelines
+          </button>
+        )}
       </div>
 
       {/* Staff & Admin Portal Access */}
@@ -834,15 +839,18 @@ export const ProfileView: React.FC = () => {
         </button>
       </div>
 
-      {/* Concierge & Reset Actions */}
+      {/* Chat with Us & Reset Actions */}
       <div className="space-y-2">
-        <button
-          onClick={() => setIsConciergeOpen(true)}
+        <a
+          id="btn-profile-chat-with-us"
+          href="https://www.facebook.com/profile.php?id=61594416564619"
+          target="_blank"
+          rel="noopener noreferrer"
           className="w-full h-10 bg-[#141312] hover:bg-[#2A2725] text-white font-medium text-xs rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <MessageCircle className="w-3.5 h-3.5 stroke-[1.5]" />
-          <span>Chat with Sinta Concierge</span>
-        </button>
+          <span>Chat with us</span>
+        </a>
 
         <button
           onClick={resetAllData}

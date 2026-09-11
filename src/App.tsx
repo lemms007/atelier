@@ -13,6 +13,7 @@ import { ProfileView } from './components/profile/ProfileView';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
 import { Admin2FAModal } from './components/admin/Admin2FAModal';
 import { GoogleAuthModal } from './components/auth/GoogleAuthModal';
+import { FaqModal } from './components/common/FaqModal';
 import { Garment, CustomerTab, ViewMode } from './types';
 
 const AppContent: React.FC = () => {
@@ -139,6 +140,9 @@ const AppContent: React.FC = () => {
 
       {/* Customer Mobile Navigation Bar */}
       <BottomNavigation />
+
+      {/* FAQs & Rental Guidelines Modal */}
+      <FaqModal />
 
       {/* Admin Two-Factor Authentication Modal */}
       <Admin2FAModal />

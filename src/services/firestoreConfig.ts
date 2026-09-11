@@ -1,6 +1,51 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, defaultDb, namedDb } from '../firebase';
-import { CheckoutConfig } from '../types';
+import { CheckoutConfig, FAQItem } from '../types';
+
+export const DEFAULT_FAQS: FAQItem[] = [
+  {
+    id: 'faq-1',
+    question: 'How does the 4 to 14-day rental window work?',
+    answer: 'Day 1 is your delivery date when our courier arrives with your dress in specialized hanging garment luggage. The final day (Day 4 up to Day 14) is when our return courier arrives to collect the package.',
+    category: 'booking',
+  },
+  {
+    id: 'faq-2',
+    question: 'When and how is my refundable security deposit returned?',
+    answer: 'Your security deposit (50% of the rental fee) is remitted back to your original GCash or Bank Transfer account within 24 hours of our Manila atelier team verifying the garment upon return.',
+    category: 'deposits',
+  },
+  {
+    id: 'faq-3',
+    question: 'Do I need to dry clean the garment before returning?',
+    answer: 'Never! Complimentary professional dry cleaning and sanitization by our certified atelier textile conservators is included in every rental. Please do not wash, iron, or steam delicate silk or organza at home.',
+    category: 'cleaning',
+  },
+  {
+    id: 'faq-4',
+    question: 'What areas in the Philippines are covered for delivery?',
+    answer: 'We offer white-glove same-day courier dispatch across Metro Manila (BGC, Makati, Ortigas, Alabang, QC, Cavite, Laguna, Rizal) via Lalamove, and express insured courier dispatch across Luzon, Visayas, and Mindanao.',
+    category: 'shipping',
+  },
+  {
+    id: 'faq-5',
+    question: 'What happens if there is accidental minor wear or beverage splatter?',
+    answer: 'Minor, normal wear such as cosmetic hemline dust or removable beverage splatters is 100% covered under Sinta Atelier Care. Severe irreparable burns, structural tears, or unreturned items may forfeit the security deposit or incur retail replacement costs as per the rental agreement.',
+    category: 'deposits',
+  },
+  {
+    id: 'faq-6',
+    question: 'How does optional Google Registration benefit me?',
+    answer: 'Registering with Google links your profile in our Firestore database. Your delivery address, Philippine government ID credentials, and measurements are securely stored so you never have to re-enter them on future rentals.',
+    category: 'general',
+  },
+  {
+    id: 'faq-7',
+    question: 'How do silhouette measurements and sizing work?',
+    answer: 'You can save your silhouette measurements (bust, waist, hips, height) in your Profile. You can also click "Size Guide & Silhouette Chart" on any garment page or chat directly with us on Facebook for bespoke fitting advice.',
+    category: 'sizing',
+  },
+];
 
 export const DEFAULT_CHECKOUT_CONFIG: CheckoutConfig = {
   gcash: {
@@ -65,6 +110,7 @@ Your personal records and order history are securely maintained in protected clo
 
 5. Your Data Subject Rights
 As a data subject, you have the right to be informed, access, rectify, erase, or object to the processing of your personal data under Philippine data privacy regulations.`,
+  faqs: DEFAULT_FAQS,
 };
 
 const CHECKOUT_CONFIG_CACHE_KEY = 'sinta_checkout_config_v2';
@@ -86,6 +132,9 @@ export function getCachedCheckoutConfig(): CheckoutConfig {
               ? parsed.bankTransfer.accounts
               : DEFAULT_CHECKOUT_CONFIG.bankTransfer.accounts,
           },
+          faqs: Array.isArray(parsed.faqs) && parsed.faqs.length > 0
+            ? parsed.faqs
+            : DEFAULT_CHECKOUT_CONFIG.faqs,
         };
       }
     }
@@ -119,6 +168,9 @@ export async function fetchCheckoutConfigFromFirestore(): Promise<CheckoutConfig
             ? remote.bankTransfer.accounts
             : DEFAULT_CHECKOUT_CONFIG.bankTransfer.accounts,
         },
+        faqs: Array.isArray(remote.faqs) && remote.faqs.length > 0
+          ? remote.faqs
+          : DEFAULT_CHECKOUT_CONFIG.faqs,
       };
       setCachedCheckoutConfig(merged);
       return merged;

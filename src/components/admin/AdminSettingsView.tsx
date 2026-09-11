@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { BankAccountConfig } from '../../types';
+import { BankAccountConfig, FAQItem } from '../../types';
+import { DEFAULT_FAQS } from '../../services/firestoreConfig';
 import {
   CreditCard,
   Building2,
@@ -15,13 +16,24 @@ import {
   UploadCloud,
   FileCheck,
   HelpCircle,
+  ArrowUp,
+  ArrowDown,
+  Edit3,
+  Check,
+  Eye,
 } from 'lucide-react';
 
 export const AdminSettingsView: React.FC = () => {
-  const { checkoutConfig, updateCheckoutConfig, resetCheckoutConfigToDefaults, showToast } = useApp();
+  const {
+    checkoutConfig,
+    updateCheckoutConfig,
+    resetCheckoutConfigToDefaults,
+    showToast,
+    openFaqModal,
+  } = useApp();
 
   // Local draft state for editing before saving
-  const [activeSubTab, setActiveSubTab] = useState<'payment' | 'terms' | 'privacy'>('payment');
+  const [activeSubTab, setActiveSubTab] = useState<'payment' | 'terms' | 'privacy' | 'faqs'>('payment');
   const [isSaving, setIsSaving] = useState(false);
 
   // GCash Draft State
@@ -39,6 +51,31 @@ export const AdminSettingsView: React.FC = () => {
   const [termsContent, setTermsContent] = useState(checkoutConfig.termsContent);
   const [privacyTitle, setPrivacyTitle] = useState(checkoutConfig.privacyTitle);
   const [privacyContent, setPrivacyContent] = useState(checkoutConfig.privacyContent);
+
+  // FAQ Draft State
+  const [faqDrafts, setFaqDrafts] = useState<FAQItem[]>(
+    checkoutConfig.faqs && checkoutConfig.faqs.length > 0
+      ? checkoutConfig.faqs
+      : DEFAULT_FAQS
+  );
+
+  useEffect(() => {
+    if (checkoutConfig.faqs && checkoutConfig.faqs.length > 0) {
+      setFaqDrafts(checkoutConfig.faqs);
+    }
+  }, [checkoutConfig.faqs]);
+
+  // Add FAQ draft state
+  const [isAddingFaq, setIsAddingFaq] = useState(false);
+  const [newFaqQuestion, setNewFaqQuestion] = useState('');
+  const [newFaqAnswer, setNewFaqAnswer] = useState('');
+  const [newFaqCategory, setNewFaqCategory] = useState<FAQItem['category']>('booking');
+
+  // Edit FAQ inline state
+  const [editingFaqId, setEditingFaqId] = useState<string | null>(null);
+  const [editQuestion, setEditQuestion] = useState('');
+  const [editAnswer, setEditAnswer] = useState('');
+  const [editCategory, setEditCategory] = useState<FAQItem['category']>('booking');
 
   // New bank account inline state
   const [isAddingBank, setIsAddingBank] = useState(false);
@@ -88,6 +125,72 @@ export const AdminSettingsView: React.FC = () => {
     setBankAccounts((prev) => prev.filter((b) => b.id !== id));
   };
 
+  // FAQ CRUD handlers
+  const handleAddFaq = () => {
+    if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) {
+      showToast('Please provide both question and answer.');
+      return;
+    }
+    const newFaq: FAQItem = {
+      id: `faq-${Date.now()}`,
+      question: newFaqQuestion.trim(),
+      answer: newFaqAnswer.trim(),
+      category: newFaqCategory || 'booking',
+    };
+    setFaqDrafts((prev) => [...prev, newFaq]);
+    setNewFaqQuestion('');
+    setNewFaqAnswer('');
+    setNewFaqCategory('booking');
+    setIsAddingFaq(false);
+    showToast('New FAQ added to draft.');
+  };
+
+  const handleDeleteFaq = (id: string) => {
+    if (faqDrafts.length <= 1) {
+      showToast('At least one FAQ item must remain configured.');
+      return;
+    }
+    setFaqDrafts((prev) => prev.filter((f) => f.id !== id));
+    showToast('FAQ removed from draft.');
+  };
+
+  const handleStartEditFaq = (faq: FAQItem) => {
+    setEditingFaqId(faq.id);
+    setEditQuestion(faq.question);
+    setEditAnswer(faq.answer);
+    setEditCategory(faq.category || 'booking');
+  };
+
+  const handleSaveEditFaq = (id: string) => {
+    if (!editQuestion.trim() || !editAnswer.trim()) {
+      showToast('Question and answer cannot be empty.');
+      return;
+    }
+    setFaqDrafts((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              question: editQuestion.trim(),
+              answer: editAnswer.trim(),
+              category: editCategory,
+            }
+          : f
+      )
+    );
+    setEditingFaqId(null);
+    showToast('FAQ updated in draft.');
+  };
+
+  const handleMoveFaq = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= faqDrafts.length) return;
+    const reordered = [...faqDrafts];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setFaqDrafts(reordered);
+  };
+
   const handleSaveAll = async () => {
     try {
       setIsSaving(true);
@@ -106,8 +209,9 @@ export const AdminSettingsView: React.FC = () => {
         termsContent: termsContent.trim(),
         privacyTitle: privacyTitle.trim(),
         privacyContent: privacyContent.trim(),
+        faqs: faqDrafts,
       });
-      showToast('Configuration successfully saved to database.');
+      showToast('Configuration and FAQs successfully saved to database.');
     } catch (err) {
       showToast('Failed to save configuration. Please try again.');
     } finally {
@@ -116,7 +220,7 @@ export const AdminSettingsView: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (window.confirm('Reset all payment details, terms, and privacy policy back to default settings?')) {
+    if (window.confirm('Reset all payment details, terms, and FAQs back to default settings?')) {
       await resetCheckoutConfigToDefaults();
       // Update local draft states to defaults
       setGcashMerchantName('ATELIER LUXE COUTURE INC');
@@ -151,6 +255,7 @@ export const AdminSettingsView: React.FC = () => {
       setTermsContent(checkoutConfig.termsContent);
       setPrivacyTitle('Privacy Policy');
       setPrivacyContent(checkoutConfig.privacyContent);
+      setFaqDrafts(DEFAULT_FAQS);
     }
   };
 
@@ -233,6 +338,20 @@ export const AdminSettingsView: React.FC = () => {
         >
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>Privacy Policy</span>
+        </button>
+
+        <button
+          id="subtab-admin-faqs"
+          type="button"
+          onClick={() => setActiveSubTab('faqs')}
+          className={`px-3.5 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all cursor-pointer ${
+            activeSubTab === 'faqs'
+              ? 'bg-[#141312] text-white'
+              : 'bg-white text-[#5C5854] border border-[#E8E4DF] hover:text-[#141312]'
+          }`}
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          <span>FAQs & Guidelines ({faqDrafts.length})</span>
         </button>
       </div>
 
@@ -599,6 +718,279 @@ export const AdminSettingsView: React.FC = () => {
               onChange={(e) => setPrivacyContent(e.target.value)}
               className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-3 py-2.5 text-xs text-[#141312] font-mono leading-relaxed focus:outline-none focus:border-[#141312]"
             />
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 4: FAQS & RENTAL POLICY GUIDELINES */}
+      {activeSubTab === 'faqs' && (
+        <div className="space-y-5 animate-fadeIn">
+          {/* Top Info and Actions */}
+          <div className="bg-white p-5 rounded-xl border border-[#E8E4DF] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8E4DF] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#80232F]/10 flex items-center justify-center text-[#80232F]">
+                  <HelpCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-sm font-semibold text-[#141312]">
+                    Frequently Asked Questions ({faqDrafts.length})
+                  </h3>
+                  <p className="text-[11px] text-[#948E88]">
+                    Rendered in Header navigation, Product Detail, Cart, and Checkout
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openFaqModal()}
+                  className="px-3 py-1.5 text-xs font-medium text-[#141312] bg-[#FAF9F6] hover:bg-[#F5F3EF] border border-[#E8E4DF] rounded-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Open live customer FAQ modal preview"
+                >
+                  <Eye className="w-3.5 h-3.5 text-[#5C5854]" />
+                  <span>Preview Modal</span>
+                </button>
+
+                <button
+                  id="btn-admin-add-faq"
+                  type="button"
+                  onClick={() => setIsAddingFaq(true)}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-[#141312] hover:bg-[#2A2725] rounded-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add New FAQ</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Inline Add FAQ Card */}
+            {isAddingFaq && (
+              <div className="bg-[#FAF9F6] border border-[#141312]/20 rounded-xl p-4 space-y-3 animate-fadeIn">
+                <div className="flex items-center justify-between border-b border-[#E8E4DF] pb-2">
+                  <span className="font-serif text-xs font-semibold text-[#141312]">
+                    Create New FAQ Item
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingFaq(false)}
+                    className="text-xs text-[#948E88] hover:text-[#141312]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                      Question *
+                    </label>
+                    <input
+                      id="input-new-faq-question"
+                      type="text"
+                      value={newFaqQuestion}
+                      onChange={(e) => setNewFaqQuestion(e.target.value)}
+                      placeholder="e.g. Can I request a try-on before renting?"
+                      className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                      Category *
+                    </label>
+                    <select
+                      id="select-new-faq-category"
+                      value={newFaqCategory}
+                      onChange={(e) => setNewFaqCategory(e.target.value as any)}
+                      className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                    >
+                      <option value="booking">Booking & Dates</option>
+                      <option value="deposits">Security Deposits</option>
+                      <option value="cleaning">Care & Cleaning</option>
+                      <option value="shipping">Delivery & Logistics</option>
+                      <option value="sizing">Sizing & Fit</option>
+                      <option value="general">Registration & General</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                    Answer Guidelines *
+                  </label>
+                  <textarea
+                    id="input-new-faq-answer"
+                    rows={3}
+                    value={newFaqAnswer}
+                    onChange={(e) => setNewFaqAnswer(e.target.value)}
+                    placeholder="Provide clear, concise rental rules or atelier policies..."
+                    className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingFaq(false)}
+                    className="px-3 py-1.5 text-xs text-[#5C5854] hover:text-[#141312]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="btn-confirm-add-faq"
+                    type="button"
+                    onClick={handleAddFaq}
+                    className="px-4 py-1.5 text-xs font-medium bg-[#141312] text-white rounded-md hover:bg-[#2A2725] transition-colors cursor-pointer"
+                  >
+                    Add to Drafts
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* List of Configured FAQs */}
+            <div className="space-y-3">
+              {faqDrafts.map((faq, index) => {
+                const isEditing = editingFaqId === faq.id;
+
+                if (isEditing) {
+                  return (
+                    <div
+                      key={faq.id}
+                      className="bg-[#FAF9F6] border-2 border-[#141312] rounded-xl p-4 space-y-3 animate-fadeIn"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                            Edit Question
+                          </label>
+                          <input
+                            type="text"
+                            value={editQuestion}
+                            onChange={(e) => setEditQuestion(e.target.value)}
+                            className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                            Category
+                          </label>
+                          <select
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value as any)}
+                            className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                          >
+                            <option value="booking">Booking & Dates</option>
+                            <option value="deposits">Security Deposits</option>
+                            <option value="cleaning">Care & Cleaning</option>
+                            <option value="shipping">Delivery & Logistics</option>
+                            <option value="sizing">Sizing & Fit</option>
+                            <option value="general">Registration & General</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                          Edit Answer
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={editAnswer}
+                          onChange={(e) => setEditAnswer(e.target.value)}
+                          className="w-full bg-white border border-[#E8E4DF] rounded-md px-3 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingFaqId(null)}
+                          className="px-3 py-1.5 text-xs text-[#5C5854] hover:text-[#141312]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditFaq(faq.id)}
+                          className="px-4 py-1.5 text-xs font-medium bg-[#141312] text-white rounded-md hover:bg-[#2A2725] flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Update Item</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={faq.id}
+                    id={`admin-faq-row-${faq.id}`}
+                    className="bg-white border border-[#E8E4DF] rounded-xl p-3.5 sm:p-4 hover:border-[#141312]/30 transition-all space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[#80232F] bg-[#80232F]/10 px-2 py-0.5 rounded">
+                            {faq.category || 'general'}
+                          </span>
+                          <span className="text-[11px] text-[#948E88]">
+                            #{index + 1}
+                          </span>
+                        </div>
+                        <h4 className="font-serif text-xs sm:text-sm font-semibold text-[#141312]">
+                          {faq.question}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => handleMoveFaq(index, 'up')}
+                          className="w-7 h-7 rounded border border-[#E8E4DF] flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#FAF9F6] disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === faqDrafts.length - 1}
+                          onClick={() => handleMoveFaq(index, 'down')}
+                          className="w-7 h-7 rounded border border-[#E8E4DF] flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#FAF9F6] disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditFaq(faq)}
+                          className="w-7 h-7 rounded border border-[#E8E4DF] flex items-center justify-center text-[#5C5854] hover:text-[#141312] hover:bg-[#FAF9F6]"
+                          title="Edit FAQ"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFaq(faq.id)}
+                          className="w-7 h-7 rounded border border-[#E8E4DF] flex items-center justify-center text-[#B91C1C] hover:bg-[#B91C1C]/10"
+                          title="Delete FAQ"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-[#5C5854] leading-relaxed border-t border-[#E8E4DF]/50 pt-2 whitespace-pre-line">
+                      {faq.answer}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

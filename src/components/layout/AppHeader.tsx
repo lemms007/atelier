@@ -8,6 +8,7 @@ import {
   Heart,
   Sparkles,
   Clock,
+  HelpCircle,
 } from 'lucide-react';
 
 export const AppHeader: React.FC = () => {
@@ -27,6 +28,7 @@ export const AppHeader: React.FC = () => {
     setIsGoogleLoginModalOpen,
     setSelectedGarment,
     navigateToRentals,
+    openFaqModal,
   } = useApp();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -61,8 +63,8 @@ export const AppHeader: React.FC = () => {
             </span>
           </button>
 
-          {/* Desktop Direct Navigation Link to Collection */}
-          <nav className="hidden md:flex items-center pl-4 border-l border-[#E8E4DF]" aria-label="Main Navigation">
+          {/* Desktop Direct Navigation Link to Collection & FAQs */}
+          <nav className="hidden md:flex items-center gap-2 pl-4 border-l border-[#E8E4DF]" aria-label="Main Navigation">
             <button
               id="nav-desktop-explore"
               type="button"
@@ -77,6 +79,17 @@ export const AppHeader: React.FC = () => {
               }`}
             >
               Collection
+            </button>
+
+            <button
+              id="nav-desktop-faq"
+              type="button"
+              onClick={() => openFaqModal()}
+              className="w-9 h-9 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center border bg-white border-[#E8E4DF] text-[#78716C] hover:text-[#141312] hover:border-[#141312] hover:bg-[#F5F3EF] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#141312] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAF9F6] shrink-0"
+              title="Rental Guidelines & FAQs"
+              aria-label="Rental FAQs"
+            >
+              <HelpCircle className="w-4 h-4 stroke-[1.5]" />
             </button>
           </nav>
         </div>

@@ -303,16 +303,18 @@ export const OrderTrackingDetail: React.FC<OrderTrackingDetailProps> = ({
         </div>
       </div>
 
-      {/* Concierge Action */}
+      {/* Chat with Us Action */}
       <div className="pt-1">
-        <button
-          id="btn-concierge-support"
-          onClick={() => setIsConciergeOpen(true)}
-          className="w-full h-10 bg-[#FFFFFF] hover:bg-[#FAF9F6] border border-[#E8E4DF] text-[#141312] font-medium text-xs rounded-md flex items-center justify-center gap-2 transition-colors"
+        <a
+          id="btn-chat-with-us-order"
+          href="https://www.facebook.com/profile.php?id=61594416564619"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full h-10 bg-[#FFFFFF] hover:bg-[#FAF9F6] border border-[#E8E4DF] text-[#141312] font-medium text-xs rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <MessageCircle className="w-3.5 h-3.5 text-[#141312] stroke-[1.5]" />
-          <span>Concierge Support via WhatsApp / Viber</span>
-        </button>
+          <span>Chat with us</span>
+        </a>
       </div>
 
       <ConciergeModal

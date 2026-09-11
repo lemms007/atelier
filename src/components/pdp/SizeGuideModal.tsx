@@ -137,12 +137,22 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
 
           {/* Fitting Notes */}
           <div className="bg-[#FAF8F5] p-3.5 rounded-xl border border-[#F2ECE4] text-[11px] text-[#6B6661] space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[#8C2D3B] font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-[#C8A27A]" />
-              <span>Complimentary Fit Concierge</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[#8C2D3B] font-semibold">
+                <Sparkles className="w-3.5 h-3.5 text-[#C8A27A]" />
+                <span>Complimentary Fit Advice</span>
+              </div>
+              <a
+                href="https://www.facebook.com/profile.php?id=61594416564619"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-semibold text-[#8C2D3B] hover:underline"
+              >
+                Chat with us →
+              </a>
             </div>
             <p>
-              Not sure about your size? Our Manila atelier team provides complimentary virtual fitting consultations via WhatsApp or Viber prior to dispatch.
+              Not sure about your size? Our Manila atelier stylists provide complimentary virtual fitting consultations on Facebook prior to dispatch.
             </p>
           </div>
         </div>

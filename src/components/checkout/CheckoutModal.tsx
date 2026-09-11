@@ -33,6 +33,7 @@ import {
   Trash2,
   ArrowRight,
   ArrowLeft,
+  HelpCircle,
 } from 'lucide-react';
 
 export const LALAMOVE_SERVICEABLE_LOCATIONS: Record<string, string[]> = {
@@ -230,6 +231,7 @@ export const CheckoutModal: React.FC = () => {
     currentUser,
     userProfile,
     checkoutConfig,
+    openFaqModal,
   } = useApp();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -540,17 +542,30 @@ export const CheckoutModal: React.FC = () => {
         <div className="bg-[#FFFFFF] px-5 py-3.5 border-b border-[#E8E4DF] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-serif text-base font-semibold text-[#141312]">
-              Rental
+              Rental Checkout
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsCheckoutOpen(false)}
-            className="w-8 h-8 rounded flex items-center justify-center text-[#948E88] hover:text-[#141312] transition-colors"
-          >
-            <X className="w-4 h-4 stroke-[1.5]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              id="btn-checkout-faq"
+              onClick={() => openFaqModal(currentStep === 1 ? 'shipping' : currentStep === 2 ? 'general' : 'deposits')}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#78716C] hover:text-[#141312] border border-[#E8E4DF] hover:border-[#141312] bg-[#FAF9F6] hover:bg-[#F5F3EF] transition-colors cursor-pointer"
+              title="Rental FAQs & Guidelines"
+              aria-label="Rental FAQs & Guidelines"
+            >
+              <HelpCircle className="w-4 h-4 stroke-[1.5]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCheckoutOpen(false)}
+              className="w-8 h-8 rounded flex items-center justify-center text-[#948E88] hover:text-[#141312] transition-colors"
+            >
+              <X className="w-4 h-4 stroke-[1.5]" />
+            </button>
+          </div>
         </div>
 
         {/* Step Indicator Progress Bar - Clickable with validation gates */}
@@ -1363,6 +1378,20 @@ export const CheckoutModal: React.FC = () => {
                     {errors.privacy && (
                       <p className="text-[10px] text-[#B91C1C] mt-1">{errors.privacy}</p>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-[#5C5854] bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8E4DF]">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#80232F]" />
+                      <span>Security deposit is 100% refundable within 24h of return</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openFaqModal('deposits')}
+                      className="text-[#80232F] hover:underline font-medium cursor-pointer"
+                    >
+                      Deposit FAQs
+                    </button>
                   </div>
                 </div>
               </div>

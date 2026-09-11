@@ -166,9 +166,25 @@
         "wishlist": { "type": "array", "description": "Saved garment IDs in renter wishlist" }
       },
       "required": ["uid", "email", "displayName"]
+    },
+    "FAQItem": {
+      "title": "FAQItem",
+      "description": "Configurable FAQ and policy item editable by atelier administrators",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique FAQ identifier" },
+        "question": { "type": "string", "description": "Frequently asked question title" },
+        "answer": { "type": "string", "description": "Detailed answer and rental guideline explanation" },
+        "category": { "type": "string", "description": "FAQ category such as booking, deposits, cleaning, shipping, sizing, general" }
+      },
+      "required": ["id", "question", "answer"]
     }
   },
   "firestore": {
+    "/settings/{settingId}": {
+      "schema": "FAQItem",
+      "description": "Global atelier settings and configurations including checkout accounts, policies, and configurable FAQs"
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Registered user profiles containing reusable shipping addresses, uploaded KYC IDs, and size measurements"

@@ -21,6 +21,7 @@ import {
   UserMeasurements,
   RentalPricingConfig,
   CheckoutConfig,
+  FAQItem,
 } from '../types';
 import { MOCK_GARMENTS } from '../data/garments';
 import { INITIAL_MOCK_ORDERS } from '../data/initialOrders';
@@ -43,6 +44,7 @@ import {
   fetchCheckoutConfigFromFirestore,
   saveCheckoutConfigToFirestore,
   DEFAULT_CHECKOUT_CONFIG,
+  DEFAULT_FAQS,
 } from '../services/firestoreConfig';
 import { auth, signInWithGoogle, signOutCurrentUser } from '../firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -133,6 +135,14 @@ interface AppContextType {
   checkoutConfig: CheckoutConfig;
   updateCheckoutConfig: (updates: Partial<CheckoutConfig>) => Promise<void>;
   resetCheckoutConfigToDefaults: () => Promise<void>;
+
+  // Configurable FAQs & Policies Modal
+  faqs: FAQItem[];
+  isFaqModalOpen: boolean;
+  setIsFaqModalOpen: (open: boolean) => void;
+  openFaqModal: (category?: string) => void;
+  activeFaqCategory: string | null;
+  setActiveFaqCategory: (category: string | null) => void;
 
   // Garments / Products data from Firestore
   garments: Garment[];
@@ -556,8 +566,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(() => {});
   }, []);
 
-  // Configurable Checkout Details (GCash, Bank Accounts, Terms, Privacy Policy)
+  // Configurable Checkout Details (GCash, Bank Accounts, Terms, Privacy Policy, FAQs)
   const [checkoutConfig, setCheckoutConfig] = useState<CheckoutConfig>(() => getCachedCheckoutConfig());
+
+  // Configurable FAQs Modal & Filtering State
+  const [isFaqModalOpen, setIsFaqModalOpen] = useState<boolean>(false);
+  const [activeFaqCategory, setActiveFaqCategory] = useState<string | null>(null);
+
+  const openFaqModal = useCallback((category?: string) => {
+    setActiveFaqCategory(category || null);
+    setIsFaqModalOpen(true);
+  }, []);
+
+  const faqs = checkoutConfig.faqs && checkoutConfig.faqs.length > 0
+    ? checkoutConfig.faqs
+    : DEFAULT_FAQS;
 
   useEffect(() => {
     fetchCheckoutConfigFromFirestore()
@@ -584,18 +607,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...(updates.bankTransfer || {}),
         accounts: updates.bankTransfer?.accounts || checkoutConfig.bankTransfer.accounts,
       },
+      faqs: updates.faqs !== undefined ? updates.faqs : (checkoutConfig.faqs || DEFAULT_FAQS),
     };
     setCheckoutConfig(updated);
     setCachedCheckoutConfig(updated);
     await saveCheckoutConfigToFirestore(updated);
-    showToast('Saved checkout and payment settings.');
+    showToast('Saved checkout, policy, and FAQ settings.');
   };
 
   const resetCheckoutConfigToDefaults = async () => {
     setCheckoutConfig(DEFAULT_CHECKOUT_CONFIG);
     setCachedCheckoutConfig(DEFAULT_CHECKOUT_CONFIG);
     await saveCheckoutConfigToFirestore(DEFAULT_CHECKOUT_CONFIG);
-    showToast('Reset checkout settings to default templates.');
+    showToast('Reset checkout settings and FAQs to default templates.');
   };
 
   // Garments / Products state initialized immediately from cached storage or live Firestore
@@ -1028,6 +1052,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         checkoutConfig,
         updateCheckoutConfig,
         resetCheckoutConfigToDefaults,
+        faqs,
+        isFaqModalOpen,
+        setIsFaqModalOpen,
+        openFaqModal,
+        activeFaqCategory,
+        setActiveFaqCategory,
         garments,
         categories,
         stores,
