@@ -23,6 +23,12 @@ import {
 } from 'lucide-react';
 import { GovernmentIdType, PHILIPPINE_GOVERNMENT_IDS, GarmentSize } from '../../types';
 import { parseFullName, formatFullName } from '../../utils/formatters';
+import {
+  LALAMOVE_SERVICEABLE_LOCATIONS,
+  CITY_DEFAULT_POSTAL_CODES,
+  getBarangaysForCity,
+  determinePostalCode,
+} from '../../data/philippineLocations';
 
 export const ProfileView: React.FC = () => {
   const {
@@ -65,10 +71,14 @@ export const ProfileView: React.FC = () => {
     email: userProfile?.shippingDetails?.email || userProfile?.email || currentUser?.email || '',
     deliveryAddress: userProfile?.shippingDetails?.deliveryAddress || '',
     landmarkNotes: userProfile?.shippingDetails?.landmarkNotes || '',
+    barangay: userProfile?.shippingDetails?.barangay || '',
     city: userProfile?.shippingDetails?.city || '',
     province: userProfile?.shippingDetails?.province || '',
     postalCode: userProfile?.shippingDetails?.postalCode || '',
   });
+
+  // Custom barangay input mode
+  const [isCustomProfileBarangay, setIsCustomProfileBarangay] = useState(false);
 
   // Sizing Form
   const [sizingForm, setSizingForm] = useState({
@@ -102,6 +112,7 @@ export const ProfileView: React.FC = () => {
           email: userProfile.shippingDetails.email || userProfile.email || '',
           deliveryAddress: userProfile.shippingDetails.deliveryAddress || '',
           landmarkNotes: userProfile.shippingDetails.landmarkNotes || '',
+          barangay: userProfile.shippingDetails.barangay || '',
           city: userProfile.shippingDetails.city || '',
           province: userProfile.shippingDetails.province || '',
           postalCode: userProfile.shippingDetails.postalCode || '',
@@ -155,6 +166,65 @@ export const ProfileView: React.FC = () => {
       fullName: combinedFullName,
     }));
     setIsEditingShipping(false);
+  };
+
+  const profileAvailableCities = shippingForm.province && LALAMOVE_SERVICEABLE_LOCATIONS[shippingForm.province]
+    ? LALAMOVE_SERVICEABLE_LOCATIONS[shippingForm.province]
+    : [];
+
+  const profileAvailableBarangays = shippingForm.city
+    ? getBarangaysForCity(shippingForm.city)
+    : [];
+
+  const handleProfileProvinceChange = (newProvince: string) => {
+    setShippingForm((prev) => ({
+      ...prev,
+      province: newProvince,
+      city: '',
+      barangay: '',
+      postalCode: '',
+    }));
+    setIsCustomProfileBarangay(false);
+  };
+
+  const handleProfileCityChange = (newCity: string) => {
+    const bgyList = getBarangaysForCity(newCity);
+    const defaultCode = bgyList.length === 0 ? (CITY_DEFAULT_POSTAL_CODES[newCity] || '') : '';
+    setShippingForm((prev) => ({
+      ...prev,
+      city: newCity,
+      barangay: '',
+      postalCode: defaultCode,
+    }));
+    setIsCustomProfileBarangay(false);
+  };
+
+  const handleProfileBarangaySelect = (selected: string) => {
+    if (selected === '__custom__') {
+      setIsCustomProfileBarangay(true);
+      setShippingForm((prev) => ({
+        ...prev,
+        barangay: '',
+        postalCode: CITY_DEFAULT_POSTAL_CODES[prev.city] || '',
+      }));
+      return;
+    }
+    setIsCustomProfileBarangay(false);
+    const determinedCode = determinePostalCode(shippingForm.city, selected);
+    setShippingForm((prev) => ({
+      ...prev,
+      barangay: selected,
+      postalCode: determinedCode || prev.postalCode,
+    }));
+  };
+
+  const handleProfileCustomBarangayInput = (val: string) => {
+    const code = determinePostalCode(shippingForm.city, val);
+    setShippingForm((prev) => ({
+      ...prev,
+      barangay: val,
+      postalCode: code || prev.postalCode,
+    }));
   };
 
   const handleSaveSizing = async () => {
@@ -413,39 +483,139 @@ export const ProfileView: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={shippingForm.city}
-                  onChange={(e) => setShippingForm({ ...shippingForm, city: e.target.value })}
-                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
-                />
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
+                    Province
+                  </label>
+                  <select
+                    value={shippingForm.province}
+                    onChange={(e) => handleProfileProvinceChange(e.target.value)}
+                    className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] focus:outline-none focus:border-[#141312]"
+                  >
+                    <option value="">Select Province</option>
+                    {Object.keys(LALAMOVE_SERVICEABLE_LOCATIONS).map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
+                    City / Municipality
+                  </label>
+                  <select
+                    value={shippingForm.city}
+                    onChange={(e) => handleProfileCityChange(e.target.value)}
+                    disabled={!shippingForm.province}
+                    className={`w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                      !shippingForm.province ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="">Select City / Municipality</option>
+                    {profileAvailableCities.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
-                  Province
-                </label>
-                <input
-                  type="text"
-                  value={shippingForm.province}
-                  onChange={(e) => setShippingForm({ ...shippingForm, province: e.target.value })}
-                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-medium text-[#78716C] uppercase block mb-1">
-                  Postal Code
-                </label>
-                <input
-                  type="text"
-                  value={shippingForm.postalCode}
-                  onChange={(e) => setShippingForm({ ...shippingForm, postalCode: e.target.value })}
-                  className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312]"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                {/* Barangay field (determines postal code) */}
+                <div className="sm:col-span-7">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-medium text-[#78716C] uppercase">
+                      Barangay
+                    </label>
+                    {shippingForm.city && profileAvailableBarangays.length > 0 && !isCustomProfileBarangay && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomProfileBarangay(true);
+                          setShippingForm((prev) => ({ ...prev, barangay: '' }));
+                        }}
+                        className="text-[9px] text-[#78716C] hover:text-[#141312] underline"
+                      >
+                        Type manually
+                      </button>
+                    )}
+                  </div>
+
+                  {!isCustomProfileBarangay ? (
+                    <select
+                      value={shippingForm.barangay}
+                      onChange={(e) => handleProfileBarangaySelect(e.target.value)}
+                      disabled={!shippingForm.city}
+                      className={`w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                        !shippingForm.city ? 'opacity-60 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <option value="">Select Barangay</option>
+                      {profileAvailableBarangays.map((bgy) => {
+                        const code = determinePostalCode(shippingForm.city, bgy);
+                        return (
+                          <option key={bgy} value={bgy}>
+                            {bgy} {code ? `(ZIP ${code})` : ''}
+                          </option>
+                        );
+                      })}
+                      {shippingForm.city && (
+                        <option value="__custom__">+ Other / Not listed (Type manually)...</option>
+                      )}
+                    </select>
+                  ) : (
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        value={shippingForm.barangay}
+                        onChange={(e) => handleProfileCustomBarangayInput(e.target.value)}
+                        disabled={!shippingForm.city}
+                        placeholder={shippingForm.city ? 'Enter barangay name' : 'Select city first'}
+                        className={`w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                          !shippingForm.city ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                      />
+                      {profileAvailableBarangays.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomProfileBarangay(false);
+                            setShippingForm((prev) => ({ ...prev, barangay: '' }));
+                          }}
+                          className="text-[10px] text-[#5C5854] hover:text-[#141312] underline"
+                        >
+                          ← Choose from list of Barangays
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Postal Code field (determined by barangay) */}
+                <div className="sm:col-span-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-medium text-[#78716C] uppercase">
+                      Postal Code
+                    </label>
+                    {shippingForm.postalCode && shippingForm.barangay && (
+                      <span className="text-[9px] text-[#1E562F] font-medium bg-[#EDF7EE] px-1.5 py-0.2 rounded border border-[#C6E7C9] whitespace-nowrap">
+                        Auto-determined
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={shippingForm.postalCode}
+                    onChange={(e) => setShippingForm({ ...shippingForm, postalCode: e.target.value })}
+                    placeholder="e.g. 1634"
+                    className="w-full bg-[#FAF9F6] border border-[#E8E4DF] rounded-md px-2.5 py-1.5 text-xs text-[#141312] focus:outline-none focus:border-[#141312] font-mono"
+                  />
+                </div>
               </div>
             </div>
 
@@ -484,7 +654,7 @@ export const ProfileView: React.FC = () => {
                     {' '}• Surname: <span className="font-medium text-[#141312]">{shippingForm.lastName || '—'}</span>
                   </p>
                 )}
-                <p>{[shippingForm.deliveryAddress, shippingForm.city, shippingForm.province, shippingForm.postalCode].filter(Boolean).join(', ')}</p>
+                <p>{[shippingForm.deliveryAddress, shippingForm.barangay, shippingForm.city, shippingForm.province, shippingForm.postalCode ? `ZIP ${shippingForm.postalCode}` : ''].filter(Boolean).join(', ')}</p>
                 {shippingForm.landmarkNotes && (
                   <p className="text-[11px] text-[#78716C] italic">Note: {shippingForm.landmarkNotes}</p>
                 )}

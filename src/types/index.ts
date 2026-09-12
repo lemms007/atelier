@@ -301,6 +301,7 @@ export interface ShippingDetails {
   email: string;
   deliveryAddress: string;
   landmarkNotes?: string;
+  barangay?: string;
   city: string;
   province: string;
   postalCode: string;

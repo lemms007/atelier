@@ -35,6 +35,12 @@ import {
   ArrowLeft,
   HelpCircle,
 } from 'lucide-react';
+import {
+  CITY_DEFAULT_POSTAL_CODES,
+  CITY_BARANGAY_POSTAL_CODES,
+  getBarangaysForCity,
+  determinePostalCode,
+} from '../../data/philippineLocations';
 
 export const LALAMOVE_SERVICEABLE_LOCATIONS: Record<string, string[]> = {
   'Metro Manila': [
@@ -266,6 +272,8 @@ export const CheckoutModal: React.FC = () => {
   const [landmarkNotes, setLandmarkNotes] = useState(userProfile?.shippingDetails?.landmarkNotes || '');
   const [province, setProvince] = useState(userProfile?.shippingDetails?.province || '');
   const [city, setCity] = useState(userProfile?.shippingDetails?.city || '');
+  const [barangay, setBarangay] = useState(userProfile?.shippingDetails?.barangay || '');
+  const [isCustomBarangay, setIsCustomBarangay] = useState(false);
   const [postalCode, setPostalCode] = useState(userProfile?.shippingDetails?.postalCode || '');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
     (userProfile?.shippingDetails?.deliveryMethod as DeliveryMethod) || 'lalamove'
@@ -294,6 +302,7 @@ export const CheckoutModal: React.FC = () => {
         if (userProfile.shippingDetails.landmarkNotes !== undefined) setLandmarkNotes(userProfile.shippingDetails.landmarkNotes);
         if (userProfile.shippingDetails.province) setProvince(userProfile.shippingDetails.province);
         if (userProfile.shippingDetails.city) setCity(userProfile.shippingDetails.city);
+        if (userProfile.shippingDetails.barangay) setBarangay(userProfile.shippingDetails.barangay);
         if (userProfile.shippingDetails.postalCode) setPostalCode(userProfile.shippingDetails.postalCode);
         if (userProfile.shippingDetails.deliveryMethod) setDeliveryMethod(userProfile.shippingDetails.deliveryMethod as any);
       } else if (currentUser) {
@@ -317,21 +326,70 @@ export const CheckoutModal: React.FC = () => {
   const handleProvinceChange = (newProvince: string) => {
     setProvince(newProvince);
     setCity('');
+    setBarangay('');
+    setIsCustomBarangay(false);
     setPostalCode('');
   };
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
-    if (newCity && CITY_POSTAL_CODES[newCity]) {
-      setPostalCode(CITY_POSTAL_CODES[newCity]);
-    } else if (!newCity) {
+    setBarangay('');
+    setIsCustomBarangay(false);
+    if (!newCity) {
       setPostalCode('');
+    } else {
+      const bgyList = getBarangaysForCity(newCity);
+      if (bgyList.length === 0) {
+        setPostalCode(CITY_DEFAULT_POSTAL_CODES[newCity] || CITY_POSTAL_CODES[newCity] || '');
+      } else {
+        setPostalCode('');
+      }
+    }
+  };
+
+  const handleBarangaySelect = (selected: string) => {
+    if (selected === '__custom__') {
+      setIsCustomBarangay(true);
+      setBarangay('');
+      setPostalCode(CITY_DEFAULT_POSTAL_CODES[city] || CITY_POSTAL_CODES[city] || '');
+      return;
+    }
+    setIsCustomBarangay(false);
+    setBarangay(selected);
+    if (selected) {
+      const code = determinePostalCode(city, selected);
+      setPostalCode(code);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.barangay;
+        delete next.postalCode;
+        return next;
+      });
+    } else {
+      setPostalCode('');
+    }
+  };
+
+  const handleCustomBarangayInput = (val: string) => {
+    setBarangay(val);
+    if (val) {
+      const code = determinePostalCode(city, val);
+      if (code) {
+        setPostalCode(code);
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.barangay;
+        return next;
+      });
     }
   };
 
   const availableCities = province && LALAMOVE_SERVICEABLE_LOCATIONS[province]
     ? LALAMOVE_SERVICEABLE_LOCATIONS[province]
     : [];
+
+  const availableBarangays = city ? getBarangaysForCity(city) : [];
 
   // 3. Payment state
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('gcash');
@@ -383,6 +441,7 @@ export const CheckoutModal: React.FC = () => {
     if (!deliveryAddress.trim()) errs.deliveryAddress = 'Address is required';
     if (!province.trim()) errs.province = 'Province is required';
     if (!city.trim()) errs.city = 'City / Municipality is required';
+    if (!barangay.trim()) errs.barangay = 'Barangay is required';
     if (!postalCode.trim()) errs.postalCode = 'Postal code is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -473,6 +532,7 @@ export const CheckoutModal: React.FC = () => {
       email,
       deliveryAddress,
       landmarkNotes,
+      barangay: barangay.trim(),
       city,
       province,
       postalCode,
@@ -766,76 +826,167 @@ export const CheckoutModal: React.FC = () => {
                   )}
                 </div>
 
-                {/* City & Province & Postal Code (Lalamove Serviceable Areas) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                      Province *
-                    </label>
-                    <select
-                      id="select-renter-province"
-                      value={province}
-                      onChange={(e) => handleProvinceChange(e.target.value)}
-                      className={`w-full bg-[#FAF9F6] border ${
-                        errors.province ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
-                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
-                    >
-                      <option value="">Select</option>
-                      {Object.keys(LALAMOVE_SERVICEABLE_LOCATIONS).map((prov) => (
-                        <option key={prov} value={prov}>
-                          {prov}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.province && (
-                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.province}</p>
-                    )}
+                {/* City & Province & Barangay & Postal Code (Lalamove Serviceable Areas) */}
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                        Province *
+                      </label>
+                      <select
+                        id="select-renter-province"
+                        value={province}
+                        onChange={(e) => handleProvinceChange(e.target.value)}
+                        className={`w-full bg-[#FAF9F6] border ${
+                          errors.province ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                        } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
+                      >
+                        <option value="">Select Province</option>
+                        {Object.keys(LALAMOVE_SERVICEABLE_LOCATIONS).map((prov) => (
+                          <option key={prov} value={prov}>
+                            {prov}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.province && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.province}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
+                        City / Municipality *
+                      </label>
+                      <select
+                        id="select-renter-city"
+                        value={city}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        disabled={!province}
+                        className={`w-full bg-[#FAF9F6] border ${
+                          errors.city ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                        } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                          !province ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <option value="">Select City / Municipality</option>
+                        {availableCities.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.city && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.city}</p>
+                      )}
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                      City / Municipality *
-                    </label>
-                    <select
-                      id="select-renter-city"
-                      value={city}
-                      onChange={(e) => handleCityChange(e.target.value)}
-                      disabled={!province}
-                      className={`w-full bg-[#FAF9F6] border ${
-                        errors.city ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
-                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
-                        !province ? 'opacity-60 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      <option value="">Select</option>
-                      {availableCities.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.city && (
-                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.city}</p>
-                    )}
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                    {/* Barangay field (determines postal code) */}
+                    <div className="sm:col-span-7">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854]">
+                          Barangay *
+                        </label>
+                        {city && availableBarangays.length > 0 && !isCustomBarangay && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomBarangay(true);
+                              setBarangay('');
+                            }}
+                            className="text-[9px] text-[#78716C] hover:text-[#141312] underline"
+                          >
+                            Type manually
+                          </button>
+                        )}
+                      </div>
 
-                  <div>
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854] block mb-1">
-                      Postal Code *
-                    </label>
-                    <input
-                      id="input-renter-postal"
-                      type="text"
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      placeholder="e.g. 1634"
-                      className={`w-full bg-[#FAF9F6] border ${
-                        errors.postalCode ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
-                      } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312]`}
-                    />
-                    {errors.postalCode && (
-                      <p className="text-[10px] text-[#B91C1C] mt-1">{errors.postalCode}</p>
-                    )}
+                      {!isCustomBarangay ? (
+                        <select
+                          id="select-renter-barangay"
+                          value={barangay}
+                          onChange={(e) => handleBarangaySelect(e.target.value)}
+                          disabled={!city}
+                          className={`w-full bg-[#FAF9F6] border ${
+                            errors.barangay ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                          } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                            !city ? 'opacity-60 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          <option value="">Select Barangay</option>
+                          {availableBarangays.map((bgy) => {
+                            const code = determinePostalCode(city, bgy);
+                            return (
+                              <option key={bgy} value={bgy}>
+                                {bgy} {code ? `(ZIP ${code})` : ''}
+                              </option>
+                            );
+                          })}
+                          {city && (
+                            <option value="__custom__">+ Other / Not listed (Type manually)...</option>
+                          )}
+                        </select>
+                      ) : (
+                        <div className="space-y-1">
+                          <input
+                            id="input-renter-barangay"
+                            type="text"
+                            value={barangay}
+                            onChange={(e) => handleCustomBarangayInput(e.target.value)}
+                            disabled={!city}
+                            placeholder={city ? 'Enter barangay name' : 'Select city first'}
+                            className={`w-full bg-[#FAF9F6] border ${
+                              errors.barangay ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                            } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] ${
+                              !city ? 'opacity-60 cursor-not-allowed' : ''
+                            }`}
+                          />
+                          {availableBarangays.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCustomBarangay(false);
+                                setBarangay('');
+                              }}
+                              className="text-[10px] text-[#5C5854] hover:text-[#141312] underline"
+                            >
+                              ← Choose from list of Barangays
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {errors.barangay && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.barangay}</p>
+                      )}
+                    </div>
+
+                    {/* Postal Code field (determined by barangay) */}
+                    <div className="sm:col-span-5">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-medium uppercase tracking-wider text-[#5C5854]">
+                          Postal Code *
+                        </label>
+                        {postalCode && barangay && (
+                          <span className="text-[9px] text-[#1E562F] font-medium bg-[#EDF7EE] px-1.5 py-0.5 rounded border border-[#C6E7C9] whitespace-nowrap">
+                            Auto-determined
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        id="input-renter-postal"
+                        type="text"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="e.g. 1634"
+                        className={`w-full bg-[#FAF9F6] border ${
+                          errors.postalCode ? 'border-[#B91C1C]' : 'border-[#E8E4DF]'
+                        } rounded-md px-2.5 py-2 text-xs text-[#141312] focus:outline-none focus:border-[#141312] font-mono`}
+                      />
+                      {errors.postalCode && (
+                        <p className="text-[10px] text-[#B91C1C] mt-1">{errors.postalCode}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1088,6 +1239,19 @@ export const CheckoutModal: React.FC = () => {
                     <span className="font-serif text-base font-semibold text-[#141312]">
                       {formatPHP(grandTotal)}
                     </span>
+                  </div>
+
+                  {/* Delivery Location Summary */}
+                  <div className="pt-2.5 border-t border-[#E8E4DF] flex items-start gap-2 bg-[#FAF9F6] p-2.5 rounded-lg">
+                    <Truck className="w-3.5 h-3.5 text-[#141312] shrink-0 mt-0.5" />
+                    <div className="text-[11px] space-y-0.5">
+                      <div className="font-medium text-[#141312]">
+                        Deliver to: {formatFullName(firstName, middleName, lastName)}
+                      </div>
+                      <div className="text-[#5C5854]">
+                        {[deliveryAddress, barangay, city, province, postalCode ? `ZIP ${postalCode}` : ''].filter(Boolean).join(', ')}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -265,7 +265,9 @@ export const OrderTrackingDetail: React.FC<OrderTrackingDetailProps> = ({
             {formatFullName(order.shipping.firstName, order.shipping.middleName, order.shipping.lastName) || order.shipping.fullName}
           </p>
           <p className="text-[#5C5854]">{order.shipping.mobileNumber}</p>
-          <p className="text-[#5C5854] leading-relaxed">{order.shipping.deliveryAddress}</p>
+          <p className="text-[#5C5854] leading-relaxed">
+            {[order.shipping.deliveryAddress, order.shipping.barangay, order.shipping.city, order.shipping.province, order.shipping.postalCode ? `ZIP ${order.shipping.postalCode}` : ''].filter(Boolean).join(', ')}
+          </p>
           {order.shipping.landmarkNotes && (
             <p className="text-[11px] text-[#5C5854] bg-[#FAF9F6] p-2 rounded border border-[#E8E4DF]">
               Note: {order.shipping.landmarkNotes}
